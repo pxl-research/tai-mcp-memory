@@ -1,13 +1,9 @@
 import os
-import sys
 from typing import Optional, Literal
 
 from openai.types.chat import ChatCompletionMessageParam
 
-# Get the absolute path to the project root
-sys.path.append('../../')
-
-from demos.components.open_router_client import OpenRouterClient
+from utils.open_router_client import OpenRouterClient
 
 
 class Summarizer:
