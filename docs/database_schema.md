@@ -20,8 +20,8 @@ erDiagram
     MEMORY_ITEMS {
         TEXT id PK
         TEXT content
-        TEXT topic_name FK -> TOPICS.name
-        TEXT tags  // comma-separated list
+        TEXT topic_name FK
+        TEXT tags  "comma-separated list"
         TEXT created_at
         TEXT updated_at
         INTEGER version
@@ -29,7 +29,7 @@ erDiagram
 
     SUMMARIES {
         TEXT id PK
-        TEXT memory_id FK -> MEMORY_ITEMS.id
+        TEXT memory_id FK
         TEXT summary_type
         TEXT summary_text
         TEXT created_at
