@@ -55,7 +55,7 @@ def store_memory_prompt(
     short clarification for missing topic or call the memory_store tool.
     """
     return (
-        "Store memory (minimal)\n\n"
+        "Store memory \n\n"
         "Goal\n- Persist information for future use with minimal friction.\n\n"
         f"Content to store:\n{content}\n\n"
         f"Topic provided: {topic if topic else 'None'}\n\n"
@@ -97,7 +97,7 @@ def recall_memory_prompt(
     formatting the results succinctly.
     """
     return (
-        "Recall memory (minimal)\n\n"
+        "Recall memory \n\n"
         "Goal\n- Retrieve the most relevant stored memories for the current task.\n\n"
         f"Query:\n{query}\n\n"
         f"Topic filter: {topic if topic else 'None'}\n\n"
@@ -113,6 +113,10 @@ def recall_memory_prompt(
         "Output\n- First emit the tool call. After tool results, output a 3–5 item bullet list as above (no extra prose).\n"
     )
 
+
+# -------------------------
+# Tools 
+# -------------------------
 
 @mcp.tool()
 def memory_initialize(
@@ -372,6 +376,10 @@ def memory_summarize(
         length=length
     )
 
+
+# -------------------------
+# Main entry point
+# -------------------------
 
 if __name__ == "__main__":
     print('Initializing memory server...')
