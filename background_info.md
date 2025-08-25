@@ -1,123 +1,76 @@
-# Technical Documentation: MCP Server Memory
+## Technical Background (root)
 
-## Project Overview
+High-level documentation for the MCP Memory Server’s entrypoint, configuration, MCP tool surface, and cross-cutting concerns.
 
-The MCP Server Memory is a Model Context Protocol (MCP) server implementation that provides persistent memory capabilities for Large Language Models (LLMs). It allows LLMs to store, retrieve, and manage information across conversations and sessions through a hybrid database architecture.
+Last updated: 2025-08-25 (branch: development)
 
-## Architecture
+### Project overview
 
-### Core Components
+An MCP server that provides persistent, semantic memory for LLM agents. It stores full content and metadata in SQLite and semantic embeddings in ChromaDB. The server also generates summaries (via OpenRouter LLM) to enable summary-first retrieval.
 
-1. **`memory_server.py`**: The main server application that implements the MCP protocol and exposes memory-related tools to clients.
-   - Initializes the MCP server using FastMCP.
-   - Defines and registers MCP tools for memory operations.
-   - Handles the server startup and communication via stdio.
+### Entrypoint and MCP tools
 
-2. **`memory_service/`**: Contains the core business logic for memory operations.
-   - `core_memory_service.py`: Implements primary memory operations (initialize, store, retrieve, update, delete).
-   - `auxiliary_memory_service.py`: Implements secondary operations (listing topics, getting status, summarization).
+- Entrypoint: `memory_server.py`
 
-3. **`db/`**: Database management components.
-   - SQLite Manager: Handles structured storage of memory items, summaries, and metadata.
-   - ChromaDB Manager: Handles vector embeddings for semantic search capabilities.
+  - Uses `FastMCP` to register prompts and tools, then runs over stdio.
+  - On startup, calls `memory_initialize()` (without reset) and prints the result.
 
-4. **`utils/`**: Utility functions and helper modules.
-   - ID generation, timestamp creation, response formatting.
-   - Summarizer: Generates abstractive summaries of stored content.
+- Prompts (discovery helpers):
 
-### Database Architecture
+  - `store_memory_prompt(content, topic?)` – guides clients to call `memory_store` correctly.
+  - `recall_memory_prompt(query, topic?)` – guides clients to call `memory_retrieve` and present results succinctly.
 
-The project uses a hybrid dual-database approach:
+- Tools (from `memory_server.py`):
+  - `memory_initialize(reset: bool=False) -> dict`
+  - `memory_store(content: str, topic: str, tags: List[str]=[]) -> dict`
+  - `memory_retrieve(query: str, max_results: int=5, topic?: str, return_type: Literal['full_text','summary','both']='full_text') -> List[dict]`
+  - `memory_update(memory_id: str, content?: str, topic?: str, tags?: List[str]) -> dict`
+  - `memory_delete(memory_id: str) -> dict`
+  - `memory_list_topics() -> List[dict]`
+  - `memory_status() -> dict`
+  - `memory_summarize(memory_id?: str, query?: str, topic?: str, summary_type: Literal['abstractive','extractive','query_focused']='abstractive', length: Literal['short','medium','detailed']='medium') -> dict`
 
-1. **SQLite**: Relational database for structured data storage.
-   - Stores memory items with full content, metadata (topics, tags, timestamps), and summaries.
+Note: There is no `memory_delete_empty_topic` tool in the current code; any references in older docs are outdated.
 
-2. **ChromaDB**: Vector database for semantic search.
-   - Stores embeddings of both full content and summaries.
-   - Enables semantic search based on meaning rather than keywords.
+### Configuration (`config.py`)
 
-## API Reference
+- Environment variables (loaded via `python-dotenv`):
+  - `DB_PATH` (default `./memory_db`) → SQLite file at `${DB_PATH}/memory.sqlite` and Chroma at `${DB_PATH}/chroma`.
+  - `OPENROUTER_API_KEY` → Required for summarization.
+  - `OPENROUTER_ENDPOINT` (default `https://api.openrouter.ai/v1`) → Not directly used by the client wrapper (which has its own default); keep consistent or wire through.
+  - `DEFAULT_MAX_RESULTS` = 5 (used for retrieval defaults).
 
-The MCP Server exposes the following tools via the Model Context Protocol:
+Repo notes:
 
-### Core Tools
-- `memory_initialize(reset: bool)`: Initialize or reset the memory databases.
-- `memory_store(content: str, topic: str, tags: List[str])`: Store new information.
-- `memory_retrieve(query: str, max_results: int, topic: str, return_type: str)`: Retrieve information via semantic search.
-- `memory_update(memory_id: str, content: str, topic: str, tags: List[str])`: Update existing memory.
-- `memory_delete(memory_id: str)`: Delete a memory item.
+- An `.env.example` is provided. Ensure your local `.env` is not committed; rotate any exposed API keys and add `.env` to `.gitignore`.
 
-### Auxiliary Tools
-- `memory_list_topics()`: List all available topics with statistics.
-- `memory_status()`: Get system-wide status and statistics.
-- `memory_delete_empty_topic(topic_name: str)`: Remove empty topics.
-- `memory_summarize(memory_id: str, query: str, topic: str, summary_type: str, length: str)`: Generate summaries.
+### Dependencies (`requirements.txt`)
 
-## Configuration
+- Declared: `mcp[cli]`, `python-dotenv~=1.1.1`, `chromadb~=1.0.17`, `pydantic`.
+- Missing (required by code): `openai` (used by `utils/open_router_client.py` and `utils/summarizer.py`). Add to requirements to avoid runtime import errors.
 
-### `config.py`
+### Data paths
 
-- Loads environment variables using `dotenv`.
-- Defines paths for SQLite and ChromaDB databases.
-- Configures OpenRouter API settings and other parameters like default maximum results.
+- Default: `./memory_db/` (SQLite file `memory.sqlite`, Chroma dir `chroma/`). Example `.env` may set `DB_PATH=./data/` – both layouts are supported by config; choose one and keep consistent.
 
-## Development Plan
+### Cross-cutting concerns and known issues
 
-### `development_plan.md`
+- Dual writes without transactions: SQLite and Chroma operations are not atomic across stores; partial failures can diverge state.
+- SQLite foreign keys: FKs declared with `ON DELETE CASCADE` require `PRAGMA foreign_keys=ON` per connection; not currently enabled in `SQLiteConnection`.
+- Topic count bug: `_remove_from_topic` increments instead of decrements; topics may not be cleaned up correctly.
+- Retrieval return shape: `retrieve_memory` returns a list of dicts, but returns `[format_response(...)]` in empty/error cases; standardize for clients.
+- Tests & external dependency: Tests call live summarization; mock `Summarizer.generate_summary` for CI stability. Tests also write to real paths; prefer temporary directories.
+- Security: Do not commit `.env` with secrets. If already committed, rotate API keys immediately and purge history if needed.
 
-- Summarizes the project's current status, completed tasks, and future plans.
-- Highlights the dual-database architecture and references a high-level architecture diagram.
+### Related documentation
 
-## Dependencies
+- Component background docs:
 
-### `requirements.txt`
+  - `db/background_info.md`
+  - `memory_service/background_info.md`
+  - `utils/background_info.md`
+  - `tests/background_info.md`
+  - `docs/background_info.md`
 
-- Lists the following dependencies:
-  - `mcp[cli]`
-  - `python-dotenv`
-  - `chromadb`
-  - `sentence-transformers`
-  - `pydantic`
-
-## Server Implementation
-
-### `memory_server.py`
-
-- Implements the MCP Memory Server using the `FastMCP` framework.
-- Provides tools for initializing and managing memory, such as `memory_initialize` and `memory_store`.
-- Imports core and auxiliary memory services for handling operations.
-
-## Usage Flow
-
-1. **Initialization**: Server initializes databases at startup.
-2. **Memory Operations**:
-   - Client applications connect via MCP.
-   - Clients can store new memories with topics and tags.
-   - Memories can be retrieved via semantic search.
-   - Content can be updated or deleted as needed.
-3. **Summarization**:
-   - Automatic summary generation on memory storage.
-   - On-demand summarization with different types (abstractive, extractive, query-focused).
-   - Customizable summary length (short, medium, detailed).
-
-## Memory Service
-
-### `memory_service/`
-
-- **`core_memory_service.py`**: Implements primary memory operations, such as initialize, store, retrieve, update, and delete.
-- **`auxiliary_memory_service.py`**: Implements secondary operations, including listing topics, getting status, and summarization.
-
-## Utilities
-
-### `utils/`
-
-- **`helpers.py`**: Provides utility functions for ID generation, timestamp creation, and response formatting.
-- **`summarizer.py`**: Implements abstractive summarization of stored content.
-
-## Database Management
-
-### `db/`
-
-- **`chroma_manager.py`**: Manages ChromaDB operations, including embedding storage and semantic search.
-- **`sqlite_connection.py`**: Handles SQLite database connections.
-- **`sqlite_manager.py`**: Manages SQLite operations, such as storing and retrieving structured data.
+- Database schema (with ER Mermaid): `docs/database_schema.md`
+- Roadmap and architecture notes: `docs/development_plan.md`

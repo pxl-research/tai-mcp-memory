@@ -24,6 +24,100 @@ from memory_service import core_memory_service, auxiliary_memory_service
 mcp = FastMCP("memory_server")
 
 
+# -------------------------
+# Prompts (discovery helpers)
+# -------------------------
+
+@mcp.prompt()
+def store_memory_prompt(
+        content: Annotated[
+            str,
+            Field(
+                description="Exact text to store (unaltered)",
+                examples=[
+                    "Reminder: Standup moved to 10:15 Mon–Thu.",
+                    "Postgres uses MVCC for concurrency."
+                ]
+            )
+        ],
+        topic: Annotated[
+            Optional[str],
+            Field(
+                description="Short topic/category (e.g., 'project/roadmap')",
+                default=None,
+                examples=["project/roadmap", "databases", None]
+            )
+        ] = None
+) -> str:
+    """Guide the model to store a memory using minimal fields.
+
+    Returns a concise instruction prompt for the assistant to either ask one
+    short clarification for missing topic or call the memory_store tool.
+    """
+    return (
+        "Store memory \n\n"
+        "Goal\n- Persist information for future use with minimal friction.\n\n"
+        f"Content to store:\n{content}\n\n"
+        f"Topic provided: {topic if topic else 'None'}\n\n"
+        "Instructions\n"
+        "- If topic is missing, ask exactly ONE short clarifying question (<= 15 words) to get it, then proceed.\n"
+        "- Call memory_store with:\n"
+        "  - content: the exact text above (unaltered)\n"
+        "  - topic: a short topic string\n"
+        "  - tags: OPTIONAL list of 1–5 concise tags (omit if unsure)\n"
+        "- Do not add commentary or rewrite the content.\n\n"
+        "Output\n- Only emit the tool call with its arguments (no prose).\n"
+    )
+
+
+@mcp.prompt()
+def recall_memory_prompt(
+        query: Annotated[
+            str,
+            Field(
+                description="What to retrieve (natural language)",
+                examples=[
+                    "What did we decide about release timing?",
+                    "Key points about MVCC"
+                ]
+            )
+        ],
+        topic: Annotated[
+            Optional[str],
+            Field(
+                description="Optional topic filter",
+                default=None,
+                examples=["project/roadmap", None]
+            )
+        ] = None
+) -> str:
+    """Guide the model to recall the most relevant memories.
+
+    Returns a compact instruction prompt for calling memory_retrieve and
+    formatting the results succinctly.
+    """
+    return (
+        "Recall memory \n\n"
+        "Goal\n- Retrieve the most relevant stored memories for the current task.\n\n"
+        f"Query:\n{query}\n\n"
+        f"Topic filter: {topic if topic else 'None'}\n\n"
+        "Instructions\n"
+        "- Build a concise semantic query from the request.\n"
+        "- Call memory_retrieve with:\n"
+        "  - query: the brief query above\n"
+        "  - max_results: 5\n"
+        "  - topic: OMIT if not provided\n"
+        "  - return_type: 'both'\n"
+        "- If no good results, ask exactly ONE short follow-up (<= 15 words).\n"
+        "- After results, present a compact list: [memory_id] topic — brief snippet (score).\n\n"
+        "Output\n- First emit the tool call. After tool results, output a 3–5 item bullet list as above (no extra prose).\n"
+    )
+
+
+# -------------------------
+# Tools 
+# -------------------------
+
 @mcp.tool()
 def memory_initialize(
         reset: Annotated[
@@ -282,6 +376,10 @@ def memory_summarize(
         length=length
     )
 
+
+# -------------------------
+# Main entry point
+# -------------------------
 
 if __name__ == "__main__":
     print('Initializing memory server...')
