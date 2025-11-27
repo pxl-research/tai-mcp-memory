@@ -5,6 +5,7 @@ ChromaDB manager for the MCP Memory Server.
 import json
 import os
 import sys
+import logging
 from typing import List, Dict, Any, Optional
 
 import chromadb
@@ -26,6 +27,7 @@ class ChromaManager:
 
     def __init__(self):
         """Initialize the ChromaDB manager."""
+        self.logger = logging.getLogger(__name__)
         self._ensure_dir_exists()
         self.client = self._get_client()
 
@@ -34,7 +36,7 @@ class ChromaManager:
         try:
             os.makedirs(os.path.dirname(CHROMA_PATH), exist_ok=True)
         except Exception as e:
-            print(f"Error creating directory: {e}")
+            self.logger.error(f"Error creating directory: {e}")
 
     def _get_client(self):
         """Get a ChromaDB client.
@@ -55,14 +57,14 @@ class ChromaManager:
         Returns:
             bool: True if successful, False otherwise
         """
-        print(f'ChromaManager: Initializing Chroma database at {CHROMA_PATH}')
+        self.logger.info(f'ChromaManager: Initializing Chroma database at {CHROMA_PATH}')
 
         try:
             if reset:
                 try:
                     self.client.reset()
                 except Exception as e:
-                    print(f"Exception during ChromaDB reset: {e}")
+                    self.logger.error(f"Exception during ChromaDB reset: {e}")
                 finally:
                     # Re-initialize the client after reset
                     self.client = self._get_client()
@@ -75,7 +77,7 @@ class ChromaManager:
             return True
 
         except Exception as e:
-            print(f"Error initializing ChromaDB: {e}")
+            self.logger.error(f"Error initializing ChromaDB: {e}")
             return False
 
     def store_memory(self, memory_id: str,
@@ -114,9 +116,9 @@ class ChromaManager:
             return True
 
         except Exception as e:
-            print(f"Error storing memory in ChromaDB: {e}")
+            self.logger.error(f"Error storing memory in ChromaDB: {e}")
             import traceback
-            traceback.print_exc()  # Add detailed traceback
+            traceback.print_exc()
             return False
 
     def search_memories(self, query: str,
@@ -156,7 +158,7 @@ class ChromaManager:
             return memory_ids
 
         except Exception as e:
-            print(f"Error searching memories in ChromaDB: {e}")
+            self.logger.error(f"Error searching memories in ChromaDB: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -188,7 +190,7 @@ class ChromaManager:
             )
 
             if not results or len(results["ids"]) == 0:
-                print(f"Memory item with id {memory_id} not found")
+                self.logger.debug(f"Memory item with id {memory_id} not found")
                 return False
 
             current_memory = results["metadatas"][0]
@@ -215,7 +217,7 @@ class ChromaManager:
             return True
 
         except Exception as e:
-            print(f"Error updating memory in ChromaDB: {e}")
+            self.logger.error(f"Error updating memory in ChromaDB: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -234,7 +236,7 @@ class ChromaManager:
             collection.delete(ids=[memory_id])
             return True
         except Exception as e:
-            print(f"Error deleting memory from ChromaDB: {e}")
+            self.logger.error(f"Error deleting memory from ChromaDB: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -252,7 +254,7 @@ class ChromaManager:
             }
 
         except Exception as e:
-            print(f"Error getting ChromaDB status: {e}")
+            self.logger.error(f"Error getting ChromaDB status: {e}")
             return {}
 
     def store_summary_embedding(self, summary_id: str,
@@ -277,7 +279,7 @@ class ChromaManager:
             )
             return True
         except Exception as e:
-            print(f"Error storing summary embedding in ChromaDB: {e}")
+            self.logger.error(f"Error storing summary embedding in ChromaDB: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -308,7 +310,7 @@ class ChromaManager:
                 summary_ids = results["ids"][0]
             return summary_ids
         except Exception as e:
-            print(f"Error searching summary embeddings in ChromaDB: {e}")
+            self.logger.error(f"Error searching summary embeddings in ChromaDB: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -327,7 +329,7 @@ class ChromaManager:
             collection.delete(ids=[summary_id])
             return True
         except Exception as e:
-            print(f"Error deleting summary embedding from ChromaDB: {e}")
+            self.logger.error(f"Error deleting summary embedding from ChromaDB: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -360,7 +362,7 @@ class ChromaManager:
                 # Summary not found
                 return None
         except Exception as e:
-            print(f"Error getting summary from ChromaDB: {e}")
+            self.logger.error(f"Error getting summary from ChromaDB: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -415,7 +417,7 @@ class ChromaManager:
             return True
 
         except Exception as e:
-            print(f"Error updating topic in ChromaDB: {e}")
+            self.logger.error(f"Error updating topic in ChromaDB: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -444,7 +446,7 @@ class ChromaManager:
                 # Topic not found
                 return None
         except Exception as e:
-            print(f"Error getting topic from ChromaDB: {e}")
+            self.logger.error(f"Error getting topic from ChromaDB: {e}")
             import traceback
             traceback.print_exc()
             return None

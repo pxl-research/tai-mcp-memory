@@ -13,6 +13,12 @@ class SQLiteConnection:
         """Enter the context and establish a connection."""
         self.conn = sqlite3.connect(self.db_path)
         self.conn.row_factory = sqlite3.Row
+        # Enforce foreign key constraints per-connection
+        try:
+            self.conn.execute("PRAGMA foreign_keys = ON;")
+        except Exception:
+            # If pragma fails (older sqlite), proceed without crashing
+            pass
         return self.conn
 
     def __exit__(self, exc_type, exc_val, exc_tb):

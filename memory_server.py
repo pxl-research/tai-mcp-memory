@@ -7,6 +7,7 @@ persistent memory for LLMs through the Model Context Protocol (MCP).
 
 import os
 import sys
+import logging
 from typing import List, Optional, Annotated, Literal
 
 from mcp.server.fastmcp import FastMCP
@@ -382,11 +383,17 @@ def memory_summarize(
 # -------------------------
 
 if __name__ == "__main__":
-    print('Initializing memory server...')
+    # Basic logging configuration
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(name)s: %(message)s'
+    )
+    logger = logging.getLogger(__name__)
+    logger.info('Initializing memory server...')
 
     # Initialize the memory system on startup
     init_result = memory_initialize()
-    print(f"Initialization result: {init_result['status']}")
+    logger.info(f"Initialization result: {init_result['status']}")
 
     # Run the MCP server
     mcp.run(transport='stdio')
