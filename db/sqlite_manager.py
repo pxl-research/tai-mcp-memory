@@ -24,8 +24,8 @@ class SQLiteManager:
 
     def __init__(self):
         """Initialize the SQLite manager."""
-        self._ensure_dir_exists()
         self.logger = logging.getLogger(__name__)
+        self._ensure_dir_exists()
 
     def _ensure_dir_exists(self):
         """Ensure the database directory exists."""
