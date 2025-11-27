@@ -4,6 +4,7 @@ SQLite database manager for the MCP Memory Server.
 
 import os
 import sys
+import logging
 from typing import List, Dict, Any, Optional
 
 # Get the absolute path to the project root
@@ -24,13 +25,14 @@ class SQLiteManager:
     def __init__(self):
         """Initialize the SQLite manager."""
         self._ensure_dir_exists()
+        self.logger = logging.getLogger(__name__)
 
     def _ensure_dir_exists(self):
         """Ensure the database directory exists."""
         try:
             os.makedirs(os.path.dirname(SQLITE_PATH), exist_ok=True)
         except Exception as e:
-            print(f"Error creating directory: {e}")
+            self.logger.error(f"Error creating directory: {e}")
 
     def _query_fetch(self, query: str, all: bool = True) -> list | None:
         try:
@@ -44,7 +46,7 @@ class SQLiteManager:
                 return result
 
         except Exception as e:
-            print(f"Error while querying: {e}")
+            self.logger.error(f"Error while querying: {e}")
             return None
 
     def initialize(self, reset: bool = False) -> bool:
@@ -57,7 +59,7 @@ class SQLiteManager:
             bool: True if successful, False otherwise
         """
         try:
-            print(f'SQLiteManager: Initializing SQLite database at {SQLITE_PATH}')
+            self.logger.info(f'SQLiteManager: Initializing SQLite database at {SQLITE_PATH}')
             with SQLiteConnection(SQLITE_PATH) as conn:
                 cursor = conn.cursor()
 
@@ -105,11 +107,22 @@ class SQLiteManager:
                                )
                                """)
 
+                # Indices for performance
+                cursor.execute(
+                    f"CREATE INDEX IF NOT EXISTS idx_{MEMORY_COLLECTION}_topic ON {MEMORY_COLLECTION}(topic_name)"
+                )
+                cursor.execute(
+                    f"CREATE INDEX IF NOT EXISTS idx_{MEMORY_COLLECTION}_created ON {MEMORY_COLLECTION}(created_at)"
+                )
+                cursor.execute(
+                    f"CREATE INDEX IF NOT EXISTS idx_{SUMMARY_COLLECTION}_memory_type ON {SUMMARY_COLLECTION}(memory_id, summary_type)"
+                )
+
                 conn.commit()
                 return True
 
         except Exception as e:
-            print(f"Error initializing SQLite database: {e}")
+            self.logger.error(f"Error initializing SQLite database: {e}")
             return False
 
     def store_memory(self, memory_id: str, content: str, topic: str, tags: List[str]) -> bool:
@@ -146,7 +159,7 @@ class SQLiteManager:
                 return True
 
         except Exception as e:
-            print(f"Error storing memory in SQLite: {e}")
+            self.logger.error(f"Error storing memory in SQLite: {e}")
             return False
 
     def _add_to_topic(self, topic: str, conn: any) -> bool:
@@ -175,7 +188,7 @@ class SQLiteManager:
             conn.commit()
             return True
         except Exception as e:
-            print(f"Error storing memory in SQLite: {e}")
+            self.logger.error(f"Error storing memory in SQLite: {e}")
             return False
 
     def _remove_from_topic(self, topic: str, conn: any) -> bool:
@@ -204,7 +217,7 @@ class SQLiteManager:
             conn.commit()
             return True
         except Exception as e:
-            print(f"Error storing memory in SQLite: {e}")
+            self.logger.error(f"Error storing memory in SQLite: {e}")
             return False
 
     def get_memory(self, memory_id: str) -> Optional[Dict[str, Any]]:
@@ -236,7 +249,7 @@ class SQLiteManager:
                 }
 
         except Exception as e:
-            print(f"Error getting memory from SQLite: {e}")
+            self.logger.error(f"Error getting memory from SQLite: {e}")
             return None
 
     def update_memory(self, memory_id: str,
@@ -297,7 +310,7 @@ class SQLiteManager:
                 return True
 
         except Exception as e:
-            print(f"Error updating memory in SQLite: {e}")
+            self.logger.error(f"Error updating memory in SQLite: {e}")
             return False
 
     def list_topics(self) -> List[Dict[str, Any]]:
@@ -324,7 +337,7 @@ class SQLiteManager:
                 return result
 
         except Exception as e:
-            print(f"Error listing topics from SQLite: {e}")
+            self.logger.error(f"Error listing topics from SQLite: {e}")
             return []
 
     def get_status(self) -> Dict[str, Any]:
@@ -361,7 +374,7 @@ class SQLiteManager:
                 }
 
         except Exception as e:
-            print(f"Error getting status from SQLite: {e}")
+            self.logger.error(f"Error getting status from SQLite: {e}")
             return {}
 
     def delete_memory(self, memory_id: str) -> bool:
@@ -397,7 +410,7 @@ class SQLiteManager:
                 return True
 
         except Exception as e:
-            print(f"Error deleting memory from SQLite: {e}")
+            self.logger.error(f"Error deleting memory from SQLite: {e}")
             return False
 
     def store_summary(self, summary_id: str, memory_id: str, summary_type: str, summary_text: str) -> bool:
@@ -430,7 +443,7 @@ class SQLiteManager:
                 return True
 
         except Exception as e:
-            print(f"Error storing summary in SQLite: {e}")
+            self.logger.error(f"Error storing summary in SQLite: {e}")
             return False
 
     def list_summary_types_by_memory_id(self, memory_id: str, ) -> List[Dict[str, Any]]:
@@ -455,7 +468,7 @@ class SQLiteManager:
                 return result
 
         except Exception as e:
-            print(f"Error listing topics from SQLite: {e}")
+            self.logger.error(f"Error listing topics from SQLite: {e}")
             return []
 
     def get_summary(self, memory_id: str, summary_type: str) -> Optional[Dict[str, Any]]:
@@ -490,7 +503,7 @@ class SQLiteManager:
                 }
 
         except Exception as e:
-            print(f"Error getting summary from SQLite: {e}")
+            self.logger.error(f"Error getting summary from SQLite: {e}")
             return None
 
     def get_summary_by_id(self, summary_id: str) -> Optional[Dict[str, Any]]:
@@ -524,7 +537,7 @@ class SQLiteManager:
                 }
 
         except Exception as e:
-            print(f"Error getting summary by ID from SQLite: {e}")
+            self.logger.error(f"Error getting summary by ID from SQLite: {e}")
             return None
 
     def update_summary(self, summary_id: str, new_summary_text: str) -> bool:
@@ -556,7 +569,7 @@ class SQLiteManager:
                 return True
 
         except Exception as e:
-            print(f"Error updating summary in SQLite: {e}")
+            self.logger.error(f"Error updating summary in SQLite: {e}")
             return False
 
     def delete_summaries(self, memory_id: str) -> bool:
@@ -578,5 +591,5 @@ class SQLiteManager:
                 return True
 
         except Exception as e:
-            print(f"Error deleting summaries from SQLite: {e}")
+            self.logger.error(f"Error deleting summaries from SQLite: {e}")
             return False
