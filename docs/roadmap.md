@@ -1,35 +1,88 @@
-## Technical Background (docs)
+## Project Roadmap & Development Plan
 
-Documentation assets describing schema, architecture, and development roadmap.
+Single source for project status, priorities, and planned work. This merges and replaces the previous separate roadmap and development plan.
 
-Last updated: 2025-08-25 (branch: development)
+Last updated: 2025-11-27 (branch: development)
 
-### Files overview
+### Status Overview
 
-- database_schema.md
+- Completed
 
-  - Contents: SQLite-focused ER diagram (Mermaid), detailed table specs for `topics`, `memory_items`, and `summaries`; conceptual Chroma collections mapping; data flow summary; integrity/risk notes; suggested enhancements and reference SQL.
-  - Key takeaways (as reflected in current code):
-    - Tables and relationships match `db/sqlite_manager.py` create statements.
-    - Foreign keys require `PRAGMA foreign_keys=ON` which is not enabled in `db/sqlite_connection.py`.
-    - `item_count` maintenance depends on correct increment/decrement; current implementation has a decrement bug in `_remove_from_topic` (increments instead of decrements).
-    - Tags stored comma-separated; consider JSON or a junction table for robustness and queryability.
+  - Dual-database architecture (SQLite authoritative store + ChromaDB semantic index)
+  - MCP tool surface: initialize, store, retrieve, update, delete, list_topics, status, summarize
+  - Summary-first retrieval via summary embeddings; regeneration on content change
 
-- development_plan.md
-  - Contents: Project status board, phased roadmap, high-level architecture (SQLite + Chroma), data flow diagrams, MCP tool implementation outline (with code snippets), lessons learned, and next steps.
-  - Alignment notes (vs current repository):
-    - "Cross-database synchronization mechanism" is marked complete, but the code performs separate writes to SQLite and Chroma without a transactional coordinator; treat as aspirational or pending refinement.
-    - MCP server/tool examples are illustrative; the actual MCP server entry (`memory_server.py`) defines the concrete tool interface for this repo (to be validated in the root background doc step).
-    - Architecture diagram reference `architecture_diagram.png` may be a placeholder if the image isn’t present in the repo.
+- In Progress
 
-### Suggested doc updates
+  - Structured logging and clearer error propagation
+  - Test stabilization (migrate from print-based scripts)
+  - Documentation refinements (schema, ops, and background docs)
 
-1. Clarify that SQLite foreign key enforcement must be enabled per-connection; reflect this in setup instructions and examples.
-2. Note the current `_remove_from_topic` bug and the intended fix; optionally include a SQL trigger alternative.
-3. Add an explicit mapping table between SQLite tables and Chroma collections (IDs, metadata fields) for quick reference.
-4. If one summary per type per memory is desired, document the `UNIQUE(memory_id, summary_type)` constraint and include the SQL.
-5. Consider adding an operational guide: backup/restore, vacuum, Chroma reset, and maintenance tasks.
+- Next Up
+  - Minimal pytest suite (fixtures, temp paths, mock summarizer)
+  - Include similarity scores in retrieval responses (optional)
 
-### Links to generated artifacts
+### MVP Focus (Stabilization)
 
-- Database schema and ER diagram: see `docs/database_schema.md` (Mermaid ER section).
+1. Enable SQLite foreign keys per-connection (`PRAGMA foreign_keys=ON`).
+2. Fix topic count logic in `_remove_from_topic` (decrement; delete at zero).
+3. Standardize response shapes (apply `format_response` consistently; unify empty-result handling).
+4. Add minimal tests for the above (topic decrement, FK cascades, summary regeneration).
+
+### Phases
+
+- Phase 1: Core Infrastructure — MVP stabilization
+
+  - Structured logging (`logging`), improved error handling
+  - Apply MVP fixes (FK pragma, topic decrement, response consistency)
+
+- Phase 2: Memory Management — Pending
+
+  - Keep single-document summarization for MVP; plan chunking post-MVP
+  - Topic lifecycle and maintenance utilities
+
+- Phase 3: Advanced Features — Pending
+
+  - Multi-level summarization, quality assessment, retrieval scoring details
+  - Usage statistics, access control (as needed)
+
+- Phase 4: Optimization & Scaling — Pending
+  - Pagination for retrievals and topic listing
+  - Performance tuning, basic caching
+
+### Next Steps
+
+- Immediate (1–2 weeks)
+
+  - Enable FK pragma in `SQLiteConnection`
+  - Fix `_remove_from_topic` decrement logic and prune zero-count topics
+  - Normalize retrieval response shapes
+  - Introduce basic logging via `logging`
+  - Add minimal pytest with temp paths and mocked summarizer
+
+- Medium-term (3–4 weeks)
+  - Indices for common filters/sorts (e.g., `topic_name`, `created_at`; optional `UNIQUE(memory_id, summary_type)`)
+  - Reconciliation script comparing SQLite vs Chroma IDs
+  - Pagination for retrieval and topic listing
+  - Expand pytest coverage and add simple CI
+
+### Technical Debt & Known Issues
+
+- Error handling/logging: replace prints; propagate structured errors
+- Cross-store consistency: no transactional coordination between SQLite and Chroma
+- Tests: procedural, print-driven; rely on real paths and network summarization
+- Performance: vector search may slow with size; consider indices and caching
+- Specific fixes: enforce FKs; correct topic decrement logic
+
+### Documentation Notes
+
+- Clarify FK enforcement requirement in setup and examples
+- Document topic count decrement behavior; consider SQL trigger alternative
+- Provide a quick mapping between SQLite tables and Chroma collections (IDs/metadata)
+- If one summary per type is desired: document `UNIQUE(memory_id, summary_type)`
+- Add operational guidance: backup/restore, vacuum, Chroma reset/maintenance
+
+### References
+
+- Database schema and ER diagram: see [docs/database_schema.md](./database_schema.md)
+- Background docs: `docs/bg_info_root.md`, `docs/bg_info_db.md`, `docs/bg_info_memory_service.md`, `docs/bg_info_utils.md`, `docs/bg_info_tests.md`
