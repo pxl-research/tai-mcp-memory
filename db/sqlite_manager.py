@@ -188,17 +188,17 @@ class SQLiteManager:
             current_topic = cursor.fetchone()
 
             if current_topic:
-                # Only decrement if count > 1
+                # Decrement count; delete row if it reaches zero
                 if current_topic["item_count"] > 1:
                     cursor.execute(
                         f"""UPDATE {TOPICS_COLLECTION}
-                           SET item_count = item_count + 1,
+                           SET item_count = item_count - 1,
                                updated_at = ?
                            WHERE name = ?""",
                         (now, topic)
                     )
                 else:
-                    # If count is 1, delete the topic
+                    # If count is 1, deleting the last item removes the topic
                     cursor.execute(f"DELETE FROM {TOPICS_COLLECTION} WHERE name = ?", (topic,))
 
             conn.commit()
