@@ -1,22 +1,19 @@
 # MCP Memory Server
 
-A minimal MCP server that provides persistent, semantic memory for LLM agents using a hybrid store: SQLite (source of truth) + ChromaDB (vector search). Summaries are generated on ingest to enable fast, summary‑first retrieval.
+## Project Overview
 
-## Overview
+The MCP Memory Server provides persistent, semantic memory for LLM agents. It combines SQLite for structured storage and ChromaDB for vector-based semantic search, with automatic summarization for efficient retrieval.
 
-- What it is: MCP tools to store, retrieve, update, delete, summarize, list topics, and report status.
-- How it works: Write to SQLite + Chroma; summaries stored in both; retrieval searches summary embeddings, then hydrates full text.
-- No REST API (MCP only). DB schema and ER diagram are in `docs/database_schema.md`.
-
-## Tech stack
+## Technologies Used
 
 - Python 3.9+
-- FastMCP (MCP server)
-- SQLite + ChromaDB
-- OpenRouter (LLM summaries) via `openai` client wrapper
-- dotenv, pydantic
+- FastMCP
+- SQLite
+- ChromaDB
+- OpenRouter (LLM summarization)
+- python-dotenv, pydantic, openai
 
-## Install & configure
+## Installation Instructions
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -31,7 +28,7 @@ OPENROUTER_API_KEY=sk-or-v1-...
 OPENROUTER_ENDPOINT=https://api.openrouter.ai/v1  # optional
 ```
 
-## Run
+## Running the Project
 
 ```bash
 python memory_server.py
@@ -39,22 +36,11 @@ python memory_server.py
 
 Runs an MCP server over stdio. Point your MCP client to this command (tool namespace: `memory_server`).
 
-## Tools (MCP)
-
-- memory_initialize(reset=False)
-- memory_store(content, topic, tags=[])
-- memory_retrieve(query, max_results=5, topic=None, return_type="full_text|summary|both")
-- memory_update(memory_id, content?, topic?, tags?)
-- memory_delete(memory_id)
-- memory_list_topics()
-- memory_status()
-- memory_summarize(memory_id?|query?|topic?, summary_type, length)
-
 ## Database
 
 - SQLite tables: topics, memory_items, summaries
 - Chroma collections: memory_items, topics, summaries
-- Diagram and details: see `docs/database_schema.md`
+- Diagram and details: see [database_schema.md](docs/database_schema.md)
 
 ## Testing
 
@@ -71,7 +57,13 @@ python tests/test_auxiliary_memory_service.py
 - Enable a valid OPENROUTER_API_KEY for summarization; without it, storage works but summaries won’t.
 - Tags are stored comma‑separated in SQLite.
 
-More docs: `background_info.md`, `docs/development_plan.md`.
+## Background Information
+
+- [Root folder background](docs/bg_info_root.md)
+- [Database layer (`db/`)](docs/bg_info_db.md)
+- [Memory service layer (`memory_service/`)](docs/bg_info_memory_service.md)
+- [Utilities (`utils/`)](docs/bg_info_utils.md)
+- [Tests (`tests/`)](docs/bg_info_tests.md)
 
 ## MCP client integration (example)
 
