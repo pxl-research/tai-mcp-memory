@@ -2,7 +2,7 @@
 
 Single source for project status, priorities, and planned work. This merges and replaces the previous separate roadmap and development plan.
 
-Last updated: 2025-11-27 (branch: development)
+Last updated: 2026-01-28 (branch: development)
 
 ### Status Overview
 
@@ -11,23 +11,26 @@ Last updated: 2025-11-27 (branch: development)
   - Dual-database architecture (SQLite authoritative store + ChromaDB semantic index)
   - MCP tool surface: initialize, store, retrieve, update, delete, list_topics, status, summarize
   - Summary-first retrieval via summary embeddings; regeneration on content change
+  - **SQLite foreign keys enabled per-connection** (`PRAGMA foreign_keys=ON`) with logging and verification
+  - **Topic count decrement logic** working correctly with defensive checks for data integrity
+  - **Test suite for FK cascades and topic management** (`tests/test_sqlite_fk_and_topic.py`)
 
 - In Progress
 
-  - Structured logging and clearer error propagation
-  - Test stabilization (migrate from print-based scripts)
   - Documentation refinements (schema, ops, and background docs)
+  - Test stabilization (migrate remaining print-based scripts to pytest)
 
 - Next Up
+  - Standardize response shapes (apply `format_response` consistently; unify empty-result handling)
   - Minimal pytest suite (fixtures, temp paths, mock summarizer)
   - Include similarity scores in retrieval responses (optional)
 
 ### MVP Focus (Stabilization)
 
-1. Enable SQLite foreign keys per-connection (`PRAGMA foreign_keys=ON`).
-2. Fix topic count logic in `_remove_from_topic` (decrement; delete at zero).
+1. ~~Enable SQLite foreign keys per-connection (`PRAGMA foreign_keys=ON`).~~ ✅ **COMPLETED**
+2. ~~Fix topic count logic in `_remove_from_topic` (decrement; delete at zero).~~ ✅ **COMPLETED**
 3. Standardize response shapes (apply `format_response` consistently; unify empty-result handling).
-4. Add minimal tests for the above (topic decrement, FK cascades, summary regeneration).
+4. ~~Add minimal tests for FK cascades and topic decrement.~~ ✅ **COMPLETED**
 
 ### Phases
 
@@ -54,10 +57,10 @@ Last updated: 2025-11-27 (branch: development)
 
 - Immediate (1–2 weeks)
 
-  - Enable FK pragma in `SQLiteConnection`
-  - Fix `_remove_from_topic` decrement logic and prune zero-count topics
+  - ~~Enable FK pragma in `SQLiteConnection`~~ ✅ **COMPLETED**
+  - ~~Fix `_remove_from_topic` decrement logic and prune zero-count topics~~ ✅ **COMPLETED**
+  - ~~Introduce basic logging via `logging`~~ ✅ **COMPLETED** (for FK pragma and topic management)
   - Normalize retrieval response shapes
-  - Introduce basic logging via `logging`
   - Add minimal pytest with temp paths and mocked summarizer
 
 - Medium-term (3–4 weeks)
@@ -68,16 +71,15 @@ Last updated: 2025-11-27 (branch: development)
 
 ### Technical Debt & Known Issues
 
-- Error handling/logging: replace prints; propagate structured errors
+- Error handling/logging: replace remaining prints in other modules; propagate structured errors consistently
 - Cross-store consistency: no transactional coordination between SQLite and Chroma
-- Tests: procedural, print-driven; rely on real paths and network summarization
+- Tests: some tests still procedural and print-driven; rely on real paths and network summarization (need pytest migration)
 - Performance: vector search may slow with size; consider indices and caching
-- Specific fixes: enforce FKs; correct topic decrement logic
 
 ### Documentation Notes
 
-- Clarify FK enforcement requirement in setup and examples
-- Document topic count decrement behavior; consider SQL trigger alternative
+- ~~Clarify FK enforcement requirement in setup and examples~~ ✅ **COMPLETED** (FK pragma now enabled and documented)
+- ~~Document topic count decrement behavior~~ ✅ **COMPLETED** (topic management verified and tested)
 - Provide a quick mapping between SQLite tables and Chroma collections (IDs/metadata)
 - If one summary per type is desired: document `UNIQUE(memory_id, summary_type)`
 - Add operational guidance: backup/restore, vacuum, Chroma reset/maintenance
