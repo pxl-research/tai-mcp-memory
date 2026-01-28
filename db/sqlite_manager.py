@@ -2,9 +2,9 @@
 SQLite database manager for the MCP Memory Server.
 """
 
+import logging
 import os
 import sys
-import logging
 from typing import List, Dict, Any, Optional
 
 # Get the absolute path to the project root
@@ -196,13 +196,13 @@ class SQLiteManager:
             now = timestamp()
             cursor = conn.cursor()
 
-            # Check if topic exists, create if not
+            # Check if topic exists
             cursor.execute(f"SELECT * FROM {TOPICS_COLLECTION} WHERE name = ?", (topic,))
             current_topic = cursor.fetchone()
 
             if current_topic:
-                # Decrement count; delete row if it reaches zero
                 if current_topic["item_count"] > 1:
+                    # Decrement count
                     cursor.execute(
                         f"""UPDATE {TOPICS_COLLECTION}
                            SET item_count = item_count - 1,
@@ -210,14 +210,14 @@ class SQLiteManager:
                            WHERE name = ?""",
                         (now, topic)
                     )
-                else:
-                    # If count is 1, deleting the last item removes the topic
+                else:  # current_count <= 1
+                    # Delete topic when removing last item
                     cursor.execute(f"DELETE FROM {TOPICS_COLLECTION} WHERE name = ?", (topic,))
 
             conn.commit()
             return True
         except Exception as e:
-            self.logger.error(f"Error storing memory in SQLite: {e}")
+            self.logger.error(f"Error removing from topic: {e}")
             return False
 
     def get_memory(self, memory_id: str) -> Optional[Dict[str, Any]]:
