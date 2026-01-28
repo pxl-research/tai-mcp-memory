@@ -29,8 +29,9 @@ Last updated: 2026-01-28 (branch: development)
 
 1. ~~Enable SQLite foreign keys per-connection (`PRAGMA foreign_keys=ON`).~~ ✅ **COMPLETED**
 2. ~~Fix topic count logic in `_remove_from_topic` (decrement; delete at zero).~~ ✅ **COMPLETED**
-3. Standardize response shapes (apply `format_response` consistently; unify empty-result handling).
-4. ~~Add minimal tests for FK cascades and topic decrement.~~ ✅ **COMPLETED**
+3. **Fix deletion bug:** Memory deletion leaves Chroma summary embeddings orphaned (retrieve summary ID before deletion).
+4. Standardize response shapes (apply `format_response` consistently; unify empty-result handling).
+5. ~~Add minimal tests for FK cascades and topic decrement.~~ ✅ **COMPLETED**
 
 ### Phases
 
@@ -60,8 +61,10 @@ Last updated: 2026-01-28 (branch: development)
   - ~~Enable FK pragma in `SQLiteConnection`~~ ✅ **COMPLETED**
   - ~~Fix `_remove_from_topic` decrement logic and prune zero-count topics~~ ✅ **COMPLETED**
   - ~~Introduce basic logging via `logging`~~ ✅ **COMPLETED** (for FK pragma and topic management)
+  - **Fix deletion bug:** Retrieve summary ID before deleting memory to prevent orphaned Chroma embeddings
   - Normalize retrieval response shapes
   - Add minimal pytest with temp paths and mocked summarizer
+  - Add test for proper Chroma summary embedding deletion
 
 - Medium-term (3–4 weeks)
   - Indices for common filters/sorts (e.g., `topic_name`, `created_at`; optional `UNIQUE(memory_id, summary_type)`)
@@ -71,8 +74,9 @@ Last updated: 2026-01-28 (branch: development)
 
 ### Technical Debt & Known Issues
 
+- **Deletion bug:** `delete_memory` function deletes memory from SQLite (triggering FK cascade that deletes summaries), then tries to retrieve the summary to delete its Chroma embedding. Since the summary is already deleted, Chroma summary embeddings are left orphaned. **Fix:** Retrieve summary ID before deleting the memory.
 - Error handling/logging: replace remaining prints in other modules; propagate structured errors consistently
-- Cross-store consistency: no transactional coordination between SQLite and Chroma
+- Cross-store consistency: no transactional coordination between SQLite and Chroma (deletion bug is an instance of this)
 - Tests: some tests still procedural and print-driven; rely on real paths and network summarization (need pytest migration)
 - Performance: vector search may slow with size; consider indices and caching
 
