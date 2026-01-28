@@ -286,13 +286,10 @@ class SQLiteManager:
 
                 # Update topic counts if topic is changing
                 if topic is not None and topic != current_item["topic_name"]:
-                    # Decrement old topic count
-                    self._remove_from_topic(current_item["topic_name"], conn)
-
-                    # Check if new topic exists, create if not
+                    # Step 1: Ensure new topic exists (creates if needed, increments if exists)
                     self._add_to_topic(topic, conn)
 
-                # Update SQLite record
+                # Step 2: Update the memory record
                 cursor.execute(
                     f"""
                     UPDATE {MEMORY_COLLECTION}
@@ -305,6 +302,10 @@ class SQLiteManager:
                     """,
                     (new_content, new_topic, new_tags, now, memory_id)
                 )
+
+                # Step 3: Decrement old topic count
+                if topic is not None and topic != current_item["topic_name"]:
+                    self._remove_from_topic(current_item["topic_name"], conn)
 
                 conn.commit()
                 return True
