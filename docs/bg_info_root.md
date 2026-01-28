@@ -2,7 +2,7 @@
 
 High-level documentation for the MCP Memory Server’s entrypoint, configuration, MCP tool surface, and cross-cutting concerns.
 
-Last updated: 2025-08-25 (branch: development)
+Last updated: 2026-01-28 (branch: development)
 
 ### Project overview
 
@@ -36,8 +36,8 @@ Note: There is no `memory_delete_empty_topic` tool in the current code; any refe
 
 - Environment variables (loaded via `python-dotenv`):
   - `DB_PATH` (default `./memory_db`) → SQLite file at `${DB_PATH}/memory.sqlite` and Chroma at `${DB_PATH}/chroma`.
-  - `OPENROUTER_API_KEY` → Required for summarization.
-  - `OPENROUTER_ENDPOINT` (default `https://api.openrouter.ai/v1`) → Not directly used by the client wrapper (which has its own default); keep consistent or wire through.
+  - `OPENROUTER_API_KEY` → Required for summarization via OpenRouter.
+  - `OPENROUTER_ENDPOINT` (default `https://api.openrouter.ai/v1`) → Currently not used; `OpenRouterClient` has hardcoded endpoint `https://openrouter.ai/api/v1`. If you customize this env var, also update the client's `base_url` default.
   - `DEFAULT_MAX_RESULTS` = 5 (used for retrieval defaults).
 
 Repo notes:
@@ -46,8 +46,8 @@ Repo notes:
 
 ### Dependencies (`requirements.txt`)
 
-- Declared: `mcp[cli]`, `python-dotenv~=1.1.1`, `chromadb~=1.0.17`, `pydantic`.
-- Missing (required by code): `openai` (used by `utils/open_router_client.py` and `utils/summarizer.py`). Add to requirements to avoid runtime import errors.
+- Declared: `mcp[cli]>=1.23.0`, `python-dotenv~=1.2.1`, `chromadb~=1.3.5`, `pydantic~=2.12.5`, `openai~=1.109.1`.
+- All required dependencies are present.
 
 ### Data paths
 
@@ -55,22 +55,19 @@ Repo notes:
 
 ### Cross-cutting concerns and known issues
 
-- Dual writes without transactions: SQLite and Chroma operations are not atomic across stores; partial failures can diverge state.
-- SQLite foreign keys: FKs declared with `ON DELETE CASCADE` require `PRAGMA foreign_keys=ON` per connection; not currently enabled in `SQLiteConnection`.
-- Topic count bug: `_remove_from_topic` increments instead of decrements; topics may not be cleaned up correctly.
-- Retrieval return shape: `retrieve_memory` returns a list of dicts, but returns `[format_response(...)]` in empty/error cases; standardize for clients.
-- Tests & external dependency: Tests call live summarization; mock `Summarizer.generate_summary` for CI stability. Tests also write to real paths; prefer temporary directories.
-- Security: Do not commit `.env` with secrets. If already committed, rotate API keys immediately and purge history if needed.
+- **Dual writes without transactions:** SQLite and Chroma operations are not atomic across stores; partial failures can diverge state. Consider implementing reconciliation or a write-ahead queue for mission-critical use.
+- **Retrieval return shape inconsistency:** `retrieve_memory` returns a list of memory item dicts on success, but returns `[format_response(...)]` (a list containing a response dict) in empty/error cases. Clients should handle both return shapes.
+- **Tests & external dependency:** Tests call live OpenRouter API for summarization. Mock `Summarizer.generate_summary` for CI stability. Tests also write to real file paths; prefer temporary directories.
+- **Security:** Do not commit `.env` with secrets. If already committed, rotate API keys immediately and purge history if needed.
 
 ### Related documentation
 
 - Component background docs:
 
-  - `db/background_info.md`
-  - `memory_service/background_info.md`
-  - `utils/background_info.md`
-  - `tests/background_info.md`
-  - `docs/background_info.md`
+  - `docs/bg_info_db.md`
+  - `docs/bg_info_memory_service.md`
+  - `docs/bg_info_utils.md`
+  - `docs/bg_info_tests.md`
 
 - Database schema (with ER Mermaid): `docs/database_schema.md`
-- Roadmap and architecture notes: `docs/development_plan.md`
+- Roadmap and architecture notes: `docs/roadmap.md`

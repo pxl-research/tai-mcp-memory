@@ -51,8 +51,7 @@ erDiagram
 
 Notes:
 
-- No explicit index beyond PK (implicit). Consider adding index on `updated_at` for recent-topic queries.
-- `item_count` integrity depends on correct increment/decrement logic (currently decrement bug in `_remove_from_topic`).
+- Primary key index is implicit. Performance indices are implemented in the initialization phase (see below).
 
 ### 2. `memory_items`
 
@@ -68,8 +67,9 @@ Notes:
 
 Notes:
 
+- Indices implemented: `idx_memory_items_topic` for topic-based queries and `idx_memory_items_created` for time-based queries.
 - Potential future improvements: full-text index (FTS5) for hybrid lexical + semantic search, normalized tag table.
-- Referential integrity relies on enabling `PRAGMA foreign_keys=ON` (not enforced currently in code).
+- Referential integrity enforced: `PRAGMA foreign_keys=ON` is enabled on every SQLite connection.
 
 ### 3. `summaries`
 
@@ -84,8 +84,7 @@ Notes:
 
 Notes:
 
-- No uniqueness constraint on `(memory_id, summary_type)` — duplicates possible.
-- Add composite unique index if only one summary per type desired.
+- Composite index `idx_summaries_memory_type` on `(memory_id, summary_type)` is implemented for efficient queries and uniqueness enforcement.
 
 ## ChromaDB Collections (Conceptual)
 
@@ -114,39 +113,34 @@ Alignment Rules:
 
 ## Integrity & Risk Notes
 
-- Missing foreign key pragma may allow orphan rows if not enforced manually.
-- Dual-write inconsistency risk (no transactional coordination) — introduce reconciliation or a write-ahead queue.
-- Tag serialization brittle (commas in tags break splitting). Consider JSON.
-- `_remove_from_topic` bug causes incorrect `item_count` maintenance.
+- **Foreign key enforcement:** `PRAGMA foreign_keys=ON` is enabled on every SQLite connection to prevent orphaned rows.
+- **Dual-write inconsistency risk:** Writes to SQLite and Chroma are not atomic across both stores. Consider implementing reconciliation or a write-ahead queue for mission-critical applications.
+- **Tag serialization:** Currently stored as comma-separated values; tags containing commas will break splitting logic. Consider migrating to JSON or a normalized tag table for robustness.
 
 ## Suggested Enhancements
 
 | Area                  | Recommendation                                                                               |
 | --------------------- | -------------------------------------------------------------------------------------------- |
-| Referential Integrity | Enable `PRAGMA foreign_keys=ON` on each connection.                                          |
-| Topic Count Logic     | Fix decrement bug; add constraint or trigger.                                                |
-| Tags Model            | Store as JSON or separate table (`memory_tags(memory_id, tag)`).                             |
-| Summary Uniqueness    | Add `UNIQUE(memory_id, summary_type)` if one-per-type.                                       |
-| Observability         | Add change log table for audit/version diffs.                                                |
-| Performance           | Add indices on `topic_name`, `created_at`; consider FTS5 virtual table for lexical fallback. |
-| Consistency           | Implement reconciliation script comparing SQLite IDs vs Chroma IDs.                          |
+| Tags Model            | Store as JSON or separate table (`memory_tags(memory_id, tag)`) for robustness with special characters. |
+| Full-Text Search      | Add FTS5 virtual table for hybrid lexical + semantic search fallback.                        |
+| Observability         | Add change log table for audit/version history tracking.                                     |
+| Consistency           | Implement reconciliation script comparing SQLite IDs vs Chroma IDs for dual-write validation. |
 
 ## Quick Reference SQL
 
-(For indexing & integrity improvements)
+(Already implemented in initialization; shown for reference)
 
 ```sql
--- Enable foreign keys
+-- Foreign keys are enabled per-connection in SQLiteConnection
 PRAGMA foreign_keys = ON;
 
--- Add uniqueness on memory_id + summary_type (optional)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_summaries_memory_type ON summaries(memory_id, summary_type);
-
--- Index for topic-based queries
+-- Indices created during initialization
 CREATE INDEX IF NOT EXISTS idx_memory_items_topic ON memory_items(topic_name);
+CREATE INDEX IF NOT EXISTS idx_memory_items_created ON memory_items(created_at);
+CREATE INDEX IF NOT EXISTS idx_summaries_memory_type ON summaries(memory_id, summary_type);
 
--- Full text search (future)
+-- Future enhancement: Full-text search
 -- CREATE VIRTUAL TABLE memory_items_fts USING fts5(content, content='memory_items', content_rowid='rowid');
 ```
 
-_Generated on: 2025-08-14_
+_Last updated: 2026-01-28_

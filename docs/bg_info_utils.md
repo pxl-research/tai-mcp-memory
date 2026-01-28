@@ -2,7 +2,7 @@
 
 Utility layer providing shared helpers, an OpenRouter/OpenAI API wrapper, and summarization logic used by the memory services.
 
-Last updated: 2025-08-25 (branch: development)
+Last updated: 2026-01-28 (branch: development)
 
 ### Files overview
 
@@ -25,6 +25,7 @@ Last updated: 2025-08-25 (branch: development)
     - Constructor parameters: `api_key`, `base_url` (default `https://openrouter.ai/api/v1`), `model_name` (default `openai/gpt-4o-mini`), `tools_list`, `temperature`, `custom_headers` (adds referer/title branding by default).
     - `create_completions_stream(messages: Iterable, stream: bool = True)`: Calls `chat.completions.create(...)` with provided messages and options.
     - `set_model(model_name: str)`: Updates the default model.
+  - ⚠️ **Endpoint mismatch:** The client has a hardcoded `base_url` default of `https://openrouter.ai/api/v1`, while `config.OPENROUTER_ENDPOINT` is set to `https://api.openrouter.ai/v1` (note the different subdomain). These URLs may not be equivalent. The config value is not actually used.
   - Constants: Curated model identifiers across providers to simplify selection.
   - Considerations: Add retries/backoff and model allowlisting; consider handling OpenRouter-specific error payloads.
 

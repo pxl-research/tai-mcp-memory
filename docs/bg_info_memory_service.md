@@ -2,7 +2,7 @@
 
 This document summarizes the service layer that orchestrates persistence, semantic retrieval, summarization, and status reporting for the MCP Memory Server.
 
-Last updated: 2025-08-25 (branch: development)
+Last updated: 2026-01-28 (branch: development)
 
 ### Files overview
 
@@ -21,7 +21,8 @@ Last updated: 2025-08-25 (branch: development)
     - `update_memory(memory_id: str, content?: str, topic?: str, tags?: List[str]) -> dict`:
       - Validates existence, updates SQLite, reads back the updated record, updates Chroma memory doc, updates topic (if changed), and regenerates summary if content changed. If a default summary exists (`abstractive_medium`), it updates SQLite and re-stores the embedding in Chroma under the same `summary_id`.
     - `delete_memory(memory_id: str) -> dict`:
-      - Deletes memory from SQLite and Chroma; deletes all SQLite summaries for that memory; deletes only the default summary embedding in Chroma if found (others, if any, are not deleted here).
+      - Deletes memory from SQLite and Chroma; attempts to delete summaries and their Chroma embeddings.
+      - ⚠️ **BUG:** The function deletes the memory first (which cascades to delete summaries via FK), then tries to retrieve the summary to get its ID for Chroma deletion. Since the summary is already deleted from SQLite, it cannot be found, and Chroma summary embeddings are left orphaned.
   - Notes and caveats:
     - Summary lifecycle: `store_summary_embedding` uses a Chroma `.add` call; re-storing an existing ID may not update depending on Chroma backend behavior—use an explicit `update` if duplicates are disallowed.
     - Return shape inconsistency: `retrieve_memory` returns a list of dicts on success, but returns `[format_response(...)]` when empty/error; consider standardizing.
@@ -49,15 +50,16 @@ Last updated: 2025-08-25 (branch: development)
 
 ### Risks and limitations
 
-- Concurrency: No explicit locking; SQLite versions records but there’s no optimistic concurrency control surface exposed.
+- Concurrency: No explicit locking; SQLite versions records but there's no optimistic concurrency control surface exposed.
 - Consistency: Dual writes (SQLite/Chroma) can diverge on partial failure; no compensation or retry strategy.
 - Summaries lifecycle: Updating embeddings by re-adding may fail if IDs must be unique; explicit update/delete may be required.
-- Deletion coverage: Only the default summary embedding is deleted from Chroma in `delete_memory`.
+- **Deletion bug:** `delete_memory` attempts to delete the default summary embedding from Chroma, but due to FK cascade, the summary is already deleted from SQLite before retrieval is attempted. This causes Chroma summary embeddings to be orphaned. Fix: Retrieve summary ID before deleting the memory.
 
 ### Recommended improvements
 
-1. Introduce a coordinator or repository layer for atomic cross-store operations with retries/compensation.
-2. Standardize return shapes for retrieval and empty states; include similarity scores and sources.
-3. Add configuration toggles for summary generation and lengths; support async/offline summarization.
-4. Prefer summary-embedding search first for both retrieval and summarization workflows; parameterize max results.
-5. Add tests covering summary regeneration, cross-store divergence scenarios, and deletion coverage.
+1. **Fix deletion bug:** In `delete_memory`, retrieve the summary ID BEFORE deleting the memory to ensure Chroma summary embeddings can be properly cleaned up.
+2. Introduce a coordinator or repository layer for atomic cross-store operations with retries/compensation.
+3. Standardize return shapes for retrieval and empty states; include similarity scores and sources.
+4. Add configuration toggles for summary generation and lengths; support async/offline summarization.
+5. Prefer summary-embedding search first for both retrieval and summarization workflows; parameterize max results.
+6. Add tests covering summary regeneration, cross-store divergence scenarios, and deletion coverage.

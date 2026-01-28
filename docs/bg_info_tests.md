@@ -2,7 +2,7 @@
 
 The tests are procedural scripts (print-based PASS/FAIL) that exercise core flows across SQLite, Chroma, and service orchestration. Naming would allow pytest discovery, but they currently rely on prints rather than assertions.
 
-Last updated: 2025-08-25 (branch: development)
+Last updated: 2026-01-28 (branch: development)
 
 ### Files overview
 
@@ -14,12 +14,16 @@ Last updated: 2025-08-25 (branch: development)
 - test_sqlite_manager.py
 
   - Covers: DB init/reset, memory CRUD, topic listing, status, summaries CRUD, and delete operations; prints results and some returned structures.
-  - Gap: Does not assert topic count decrement (see `_remove_from_topic` bug in production code).
+
+- test_sqlite_fk_and_topic.py
+
+  - Dedicated test for topic count management and foreign key behavior.
+  - Tests topic count increments on memory creation and decrements on deletion.
 
 - test_core_memory_service.py
 
   - Covers: initialize, store, retrieve (return_type="both"), update (content then topic/tags), delete; prints status and payloads.
-  - Gap: No explicit checks for summary presence/absence after delete.
+  - Gap: No explicit checks for Chroma summary embedding cleanup after delete. **Important:** Due to a bug in `delete_memory`, Chroma summary embeddings may be orphaned (see bg_info_memory_service.md).
 
 - test_auxiliary_memory_service.py
   - Covers: list_topics (empty vs populated), get_status (empty vs with data), summarize_memory by memory_id/query/topic.
@@ -33,7 +37,7 @@ Last updated: 2025-08-25 (branch: development)
 
 ### Recommended improvements
 
-1. Migrate to pytest with fixtures for temporary DB directories and clean setup/teardown; replace prints with assertions.
-2. Add targeted tests for `_remove_from_topic` decrement behavior and for summary regeneration on content updates.
+1. **Fix and test the delete_memory bug:** Add tests to verify that Chroma summary embeddings are properly deleted when a memory is deleted (currently they are orphaned due to FK cascade ordering).
+2. Migrate to pytest with fixtures for temporary DB directories and clean setup/teardown; replace prints with assertions.
 3. Mock `Summarizer.generate_summary` in service tests to remove network dependency; parametrize tests for different `return_type` values and summary types.
 4. Add a basic CI pipeline to run tests plus linting/type-checking.
