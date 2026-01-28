@@ -198,15 +198,11 @@ def retrieve_memory(
             else:
                 print(f"Warning: Summary ID {summary_id} not found in SQLite.")
 
-        return memory_items if memory_items else [
-            format_response(success=True, message="No matching memories found")
-        ]
+        return memory_items
 
     except Exception as e:
-        return [format_response(
-            success=False,
-            message=f"Error retrieving from memory: {str(e)}"
-        )]
+        print(f"Error retrieving from memory: {str(e)}")
+        return []
 
 
 def update_memory(
@@ -339,18 +335,27 @@ def delete_memory(
         dict: Status of the deletion operation.
     """
     try:
+        # Step 1: Get all summaries BEFORE deleting (to retrieve IDs for Chroma)
+        all_summaries = sqlite_manager.list_summary_types_by_memory_id(memory_id)
+
+        # Step 2: Delete Chroma summary embeddings using the retrieved IDs
+        chroma_summary_delete_success = True
+        if all_summaries:
+            for summary_info in all_summaries:
+                summary = sqlite_manager.get_summary(memory_id, summary_info["summary_type"])
+                if summary:
+                    result = chroma_manager.delete_summary_embeddings(summary["id"])
+                    chroma_summary_delete_success = chroma_summary_delete_success and result
+
+        # Step 3: Delete memory from SQLite (will cascade delete summaries)
         sqlite_success = sqlite_manager.delete_memory(memory_id)
+
+        # Step 4: Delete memory embedding from Chroma
         chroma_success = chroma_manager.delete_memory(memory_id)
 
-        # New: Delete associated summaries
-        sqlite_summary_delete_success = sqlite_manager.delete_summaries(memory_id)
+        # Note: sqlite_manager.delete_summaries() is now redundant (cascade handles it)
 
-        default_summary = sqlite_manager.get_summary(memory_id, "abstractive_medium")
-        chroma_summary_delete_success = True
-        if default_summary:
-            chroma_summary_delete_success = chroma_manager.delete_summary_embeddings(default_summary["id"])
-
-        if sqlite_success and chroma_success and sqlite_summary_delete_success and chroma_summary_delete_success:
+        if sqlite_success and chroma_success and chroma_summary_delete_success:
             return format_response(
                 success=True,
                 message=f"Memory item {memory_id} and its summaries deleted successfully"
@@ -362,7 +367,6 @@ def delete_memory(
                 data={
                     "sqlite_success": sqlite_success,
                     "chroma_success": chroma_success,
-                    "sqlite_summary_delete_success": sqlite_summary_delete_success,
                     "chroma_summary_delete_success": chroma_summary_delete_success
                 }
             )

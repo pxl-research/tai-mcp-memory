@@ -1,6 +1,16 @@
+import os
+import sys
 from typing import Iterable
 
 from openai import OpenAI
+
+# Import config
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from config import OPENROUTER_ENDPOINT
 
 
 class OpenRouterClient(OpenAI):
@@ -10,11 +20,16 @@ class OpenRouterClient(OpenAI):
 
     def __init__(self,
                  api_key: str,
-                 base_url: str = 'https://openrouter.ai/api/v1',
+                 base_url: str = OPENROUTER_ENDPOINT,
                  model_name: str = 'openai/gpt-4o-mini',
                  tools_list: list = None,
                  temperature: float = 0,
                  custom_headers=None):
+
+        # Use config value if base_url not explicitly provided
+        if base_url is None:
+            base_url = OPENROUTER_ENDPOINT
+
         super().__init__(base_url=base_url,
                          api_key=api_key)
 
