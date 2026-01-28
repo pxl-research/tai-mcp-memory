@@ -131,10 +131,17 @@ def memory_initialize(
         ] = False
 ) -> dict:
     """Initialize or reset the memory system databases.
-    
+
+    Rarely needed - the system auto-initializes on startup. Use this only when:
+    - User explicitly requests database reset/cleanup (WARNING: destroys all memories)
+    - System needs manual initialization in special circumstances
+
+    CAUTION: reset=True permanently deletes ALL stored memories, topics, and summaries
+    from both SQLite and ChromaDB. Use with extreme care and user confirmation.
+
     Args:
         reset: Whether to reset existing memory databases.
-        
+
     Returns:
         dict: Initialization status
     """
@@ -166,13 +173,26 @@ def memory_store(
             )
         ] = []
 ) -> dict:
-    """Store new information in the persistent memory system.
-    
+    """Store new information in persistent memory for use across conversations.
+
+    USE THIS PROACTIVELY to create continuity between sessions. Store information when:
+    - User shares preferences, goals, or constraints (coding style, tech choices, requirements)
+    - User corrects you or clarifies their project context
+    - You discover important facts about their codebase, architecture, or patterns
+    - Decisions are made with rationale (why certain approaches were chosen)
+    - User explicitly asks you to remember something ("remember this", "save this")
+    - After completing significant work (architectural decisions, bug fixes, refactors)
+
+    Examples of what to store: "User prefers functional programming style", "Project uses
+    JWT auth with refresh tokens", "Database migrations via Alembic - never edit directly".
+
+    The system automatically generates a summary embedding for efficient retrieval.
+
     Args:
         content: The text content to store in memory.
         topic: The primary topic or category for this content.
         tags: Optional list of tags for better retrieval.
-        
+
     Returns:
         dict: Status and ID of the stored content
     """
@@ -214,13 +234,25 @@ def memory_retrieve(
         ] = "full_text"
 ) -> List[dict]:
     """Retrieve information from memory using semantic search.
-    
+
+    CALL THIS AT THE START OF EVERY CONVERSATION to check for relevant context about
+    the user or their projects. Also retrieve when:
+    - User references past conversations ("remember when", "last time", "previously")
+    - Starting work on a familiar codebase or project
+    - User asks "do you remember...?"
+    - Before making architectural recommendations (check for past decisions)
+    - User mentions specific project names
+
+    Uses summary embeddings for fast semantic search, then returns full content from
+    authoritative SQLite storage. Use return_type="summary" for quick context checks,
+    "full_text" for exact details, or "both" for complete information.
+
     Args:
         query: The search query to find relevant information.
         max_results: Maximum number of results to return.
         topic: Optional topic to restrict search to.
         return_type: The type of content to return (full_text, summary, or both).
-        
+
     Returns:
         List[dict]: List of matching memory items with content and metadata
     """
@@ -262,14 +294,23 @@ def memory_update(
             )
         ] = None
 ) -> dict:
-    """Update an existing memory item.
-    
+    """Update an existing memory item when information changes or evolves.
+
+    Use this instead of creating a new memory when:
+    - Information has changed or been corrected (preferences updated, decisions revised)
+    - Adding missing details to existing memory
+    - Refining or clarifying previously stored information
+    - Fixing errors in stored content
+
+    Don't use for genuinely new information - store that separately with memory_store.
+    When content is updated, the system automatically regenerates summary embeddings.
+
     Args:
         memory_id: ID of the memory item to update.
         content: New content (if updating content).
         topic: New topic (if changing).
         tags: New tags (if updating).
-        
+
     Returns:
         dict: Status and updated memory details
     """
@@ -279,7 +320,16 @@ def memory_update(
 @mcp.tool()
 def memory_list_topics() -> List[dict]:
     """List all available topics/knowledge domains in the memory system.
-    
+
+    Use this to:
+    - Discover what information has been stored previously
+    - Maintain consistent topic naming when storing new memories
+    - Understand the scope of stored knowledge
+    - Decide whether to create a new topic or use an existing one
+
+    Call this periodically to avoid creating duplicate or inconsistent topics
+    (e.g., "user_prefs" vs "user_preferences" vs "preferences").
+
     Returns:
         List[dict]: Available topics with counts and descriptions
     """
@@ -289,7 +339,12 @@ def memory_list_topics() -> List[dict]:
 @mcp.tool()
 def memory_status() -> dict:
     """Get memory system status and statistics.
-    
+
+    Use this to check system health or understand the scope of stored memories.
+    Returns counts of memories, topics, summaries, and storage locations.
+
+    Useful when debugging memory issues or providing transparency about what's stored.
+
     Returns:
         dict: Statistics about memory usage, counts, etc.
     """
@@ -307,6 +362,15 @@ def memory_delete(
         ]
 ) -> dict:
     """Delete a memory item from the system.
+
+    Use this when:
+    - Information is no longer relevant or has become obsolete
+    - User explicitly requests removal of stored information
+    - Duplicate or incorrect memories need cleanup
+    - Information was stored in error
+
+    Prefer memory_update over deletion when information has changed but is still relevant.
+    Deletion removes the memory from both SQLite and ChromaDB, including all associated summaries.
 
     Args:
         memory_id: ID of the memory item to delete.
@@ -357,7 +421,19 @@ def memory_summarize(
             )
         ] = "medium"
 ) -> dict:
-    """Generate a summary of memory items.
+    """Generate a summary of memory items on demand.
+
+    Use this to:
+    - Get a high-level overview of a topic's stored knowledge
+    - Consolidate multiple related memories into a concise summary
+    - Answer questions based on stored information (use "query_focused" type)
+    - Provide quick context without retrieving full memory details
+
+    Note: memory_store automatically generates "abstractive/medium" summaries for
+    each item. Use this tool when you need different summary types or consolidated
+    summaries across multiple memories.
+
+    Provide ONE of: memory_id (specific item), query (semantic search), or topic (all in topic).
 
     Args:
         memory_id: ID of a specific memory item to summarize.

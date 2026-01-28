@@ -36,6 +36,74 @@ python memory_server.py
 
 Runs an MCP server over stdio. Point your MCP client to this command (tool namespace: `memory_server`).
 
+## Usage Patterns
+
+The memory system is designed for **proactive use** by LLM agents. Here are common patterns and examples:
+
+### Pattern 1: Starting Every Conversation
+
+**Always check for relevant context at the beginning of a conversation:**
+
+```
+Assistant: Let me check if I have any context about your project...
+[calls memory_retrieve(query="user preferences project context", max_results=5)]
+
+# If memories found:
+Assistant: I see we've been working on the authentication system. I remember
+you prefer JWT tokens with refresh tokens stored in httpOnly cookies...
+```
+
+### Pattern 2: User Shares Preferences
+
+**Store preferences immediately when user provides them:**
+
+```
+User: I prefer functional programming and try to avoid classes when possible.
+
+[calls memory_store(
+  content="User prefers functional programming style and avoids classes when possible",
+  topic="user_preferences",
+  tags=["coding_style", "functional"]
+)]
+```
+
+### Pattern 3: User References Past Work
+
+**Retrieve context when user mentions previous interactions:**
+
+```
+User: Remember when we implemented that authentication system?
+
+[calls memory_retrieve(query="authentication system implementation", topic="project_architecture", max_results=5)]
+```
+
+### Pattern 4: Completing Significant Work
+
+**Store architectural decisions and rationale after completing work:**
+
+```
+# After implementing JWT authentication with refresh tokens
+[calls memory_store(
+  content="Implemented JWT authentication system using access tokens (15min expiry) and refresh tokens (7 days) stored in httpOnly cookies. Chose this approach for security and to prevent XSS attacks on tokens.",
+  topic="project_architecture",
+  tags=["authentication", "security", "jwt"]
+)]
+```
+
+### Pattern 5: Checking for Existing Patterns
+
+**Before making recommendations, check for past decisions:**
+
+```
+User: Should we use Redux for state management?
+
+[calls memory_retrieve(query="state management decisions patterns", max_results=3)]
+
+# If past decisions found about preferring simpler solutions:
+Assistant: Based on our previous discussions, you've preferred simpler solutions.
+Given your project size, React Context might be more appropriate than Redux...
+```
+
 ## Database
 
 - SQLite tables: topics, memory_items, summaries
@@ -54,7 +122,7 @@ python tests/test_auxiliary_memory_service.py
 ## Notes
 
 - Dual writes are not atomic across SQLite/Chroma.
-- Enable a valid OPENROUTER_API_KEY for summarization; without it, storage works but summaries won’t.
+- Enable a valid OPENROUTER_API_KEY for summarization; without it, storage works but summaries won't.
 - Tags are stored comma‑separated in SQLite.
 
 ## Background Information
