@@ -1,4 +1,5 @@
 import sqlite3
+import logging
 
 
 class SQLiteConnection:
@@ -8,17 +9,20 @@ class SQLiteConnection:
         """Initialize the connection."""
         self.db_path = db_path
         self.conn = None
+        self.logger = logging.getLogger(__name__)
 
     def __enter__(self):
         """Enter the context and establish a connection."""
         self.conn = sqlite3.connect(self.db_path)
         self.conn.row_factory = sqlite3.Row
+
         # Enforce foreign key constraints per-connection
         try:
-            self.conn.execute("PRAGMA foreign_keys = ON;")
-        except Exception:
-            # If pragma fails (older sqlite), proceed without crashing
-            pass
+            self.conn.execute("PRAGMA foreign_keys = ON")
+        except Exception as e:
+            # If pragma fails (older sqlite), log but proceed without crashing
+            self.logger.error(f"Error enabling foreign key constraints: {e}")
+
         return self.conn
 
     def __exit__(self, exc_type, exc_val, exc_tb):

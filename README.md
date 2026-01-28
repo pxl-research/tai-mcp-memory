@@ -169,3 +169,19 @@ Notes:
 
 - Replace `/path/to/tai-mcp-memory/` with your local path.
 - You can also run with `python memory_server.py` if you’re not using `uv`.
+
+## License
+
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+
+**Free for:**
+- Personal use, research, and experimentation
+- Educational institutions and students
+- Charitable and non-profit organizations
+- Government institutions
+- Hobby projects and amateur pursuits
+
+**Not permitted:**
+- Commercial use without permission
+
+For commercial licensing inquiries, please open an issue on GitHub.
