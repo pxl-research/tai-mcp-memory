@@ -25,3 +25,9 @@ OPENROUTER_ENDPOINT = os.getenv("OPENROUTER_ENDPOINT", "https://api.openrouter.a
 
 # Other configuration
 DEFAULT_MAX_RESULTS = 5
+
+# Backup configuration
+ENABLE_AUTO_BACKUP = os.getenv("ENABLE_AUTO_BACKUP", "true").lower() == "true"
+BACKUP_INTERVAL_HOURS = int(os.getenv("BACKUP_INTERVAL_HOURS", "24"))
+BACKUP_RETENTION_COUNT = int(os.getenv("BACKUP_RETENTION_COUNT", "10"))
+BACKUP_PATH = os.getenv("BACKUP_PATH", "./backups")

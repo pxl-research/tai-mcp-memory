@@ -49,9 +49,66 @@ OPENROUTER_API_KEY=sk-or-v1-your-key-here
 # Optional
 DB_PATH=./memory_db                              # Default: ./memory_db
 OPENROUTER_ENDPOINT=https://api.openrouter.ai/v1 # Default: https://api.openrouter.ai/v1
+
+# Backup configuration (optional)
+ENABLE_AUTO_BACKUP=true                          # Default: true
+BACKUP_INTERVAL_HOURS=24                         # Default: 24
+BACKUP_RETENTION_COUNT=10                        # Default: 10
+BACKUP_PATH=./backups                            # Default: ./backups
 ```
 
 **Note**: Without a valid `OPENROUTER_API_KEY`, storage works but automatic summarization will be disabled.
+
+## Automatic Backups
+
+The memory server includes automatic backup functionality to protect your data.
+
+### How It Works
+
+- **Automatic backups** are created every 24 hours (configurable) when storing new memories
+- Backups are **completely transparent** - no action required from users or LLM agents
+- The system keeps the **last 10 backups** by default and automatically removes older ones
+- Backups are stored as timestamped zip files in the `./backups` directory
+
+### Configuration
+
+Control backup behavior via environment variables in `.env`:
+
+```bash
+ENABLE_AUTO_BACKUP=true           # Enable/disable automatic backups
+BACKUP_INTERVAL_HOURS=24          # Hours between automatic backups
+BACKUP_RETENTION_COUNT=10         # Number of backups to keep
+BACKUP_PATH=./backups             # Where to store backups
+```
+
+### Restoring from Backup
+
+To restore from a backup, use the standalone restore script:
+
+```bash
+# Interactive mode - select from available backups
+python restore_memory.py
+
+# Or specify a backup file directly
+python restore_memory.py --file backups/memory_backup_2026-01-29_14-30-00.zip
+```
+
+**Safety features:**
+- Lists all available backups with timestamps and sizes
+- Creates a safety backup of your current database before restoring
+- Requires explicit confirmation before proceeding
+- Clear error messages if something goes wrong
+
+**Note:** After restoring, you may need to restart the MCP server for changes to take effect.
+
+### Disabling Automatic Backups
+
+If you have your own backup strategy, you can disable automatic backups:
+
+```bash
+# In .env
+ENABLE_AUTO_BACKUP=false
+```
 
 ## MCP Client Integration
 

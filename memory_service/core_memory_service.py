@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 from typing import List, Optional, Literal
 
 # Get the absolute path to the project root
@@ -8,10 +9,13 @@ project_root = os.path.abspath(os.path.join(current_dir, '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from config import OPENROUTER_API_KEY
+from config import OPENROUTER_API_KEY, ENABLE_AUTO_BACKUP
 from db import SQLiteManager, ChromaManager
 from utils import create_memory_id, timestamp, format_response
 from utils.summarizer import Summarizer
+from utils.backup import should_create_backup, create_backup
+
+logger = logging.getLogger(__name__)
 
 # Initialize database managers
 sqlite_manager = SQLiteManager()
@@ -66,16 +70,24 @@ def store_memory(
         tags: List[str] = []
 ) -> dict:
     """Store new information in the persistent memory system.
-    
+
     Args:
         content: The text content to store in memory.
         topic: The primary topic or category for this content.
         tags: Optional list of tags for better retrieval.
-        
+
     Returns:
         dict: Status and ID of the stored content
     """
     try:
+        # Automatic backup check (if enabled)
+        if ENABLE_AUTO_BACKUP and should_create_backup():
+            backup_file = create_backup()
+            if backup_file:
+                logger.info(f"Automatic backup created: {backup_file}")
+            else:
+                logger.warning("Automatic backup failed, continuing with storage")
+
         memory_id = create_memory_id()
         now = timestamp()
 
