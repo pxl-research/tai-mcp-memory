@@ -8,6 +8,7 @@ persistent memory for LLMs through the Model Context Protocol (MCP).
 import os
 import sys
 import logging
+from pathlib import Path
 from typing import List, Optional, Annotated, Literal
 
 from mcp.server.fastmcp import FastMCP
@@ -23,6 +24,39 @@ from memory_service import core_memory_service, auxiliary_memory_service
 
 # Initialize the MCP server
 mcp = FastMCP("memory_server")
+
+
+# -------------------------
+# Helper Functions
+# -------------------------
+
+def read_documentation_file(filename: str) -> str:
+    """Read a documentation file from the project root or docs directory.
+
+    Args:
+        filename: Name of the file (with extension)
+
+    Returns:
+        str: File contents or friendly error message
+    """
+    root_path = Path(current_dir) / filename
+    docs_path = Path(current_dir) / "docs" / filename
+
+    # Try project root first (for README.md, agents.md)
+    if root_path.exists():
+        try:
+            return root_path.read_text(encoding='utf-8')
+        except Exception as e:
+            return f"Error reading {filename}: {str(e)}"
+
+    # Try docs directory (for database_schema.md, roadmap.md, etc.)
+    if docs_path.exists():
+        try:
+            return docs_path.read_text(encoding='utf-8')
+        except Exception as e:
+            return f"Error reading docs/{filename}: {str(e)}"
+
+    return f"Documentation file not found: {filename}\nSearched in: {current_dir} and {current_dir}/docs/"
 
 
 # -------------------------
@@ -116,7 +150,72 @@ def recall_memory_prompt(
 
 
 # -------------------------
-# Tools 
+# Resources (documentation)
+# -------------------------
+
+@mcp.resource(
+    uri="memory://docs/agents",
+    name="agents-guide",
+    description="Comprehensive guide for AI agents on when and how to use the memory system proactively. Covers storage patterns, retrieval strategies, topic naming, and best practices for maintaining context across conversations.",
+    mime_type="text/markdown"
+)
+def get_agents_guide() -> str:
+    """Get the agents usage guidelines documentation.
+
+    This resource provides detailed instructions for AI agents on how to use
+    the memory system effectively, including when to store memories, retrieval
+    patterns, and best practices.
+    """
+    return read_documentation_file("agents.md")
+
+
+@mcp.resource(
+    uri="memory://docs/readme",
+    name="project-readme",
+    description="Project overview including setup instructions, available tools, usage patterns, configuration details, and integration with MCP clients.",
+    mime_type="text/markdown"
+)
+def get_readme() -> str:
+    """Get the project README documentation.
+
+    This resource provides an overview of the memory server project, including
+    installation, configuration, and integration with MCP clients.
+    """
+    return read_documentation_file("README.md")
+
+
+@mcp.resource(
+    uri="memory://docs/schema",
+    name="database-schema",
+    description="Detailed database schema including SQLite tables, ChromaDB collections, relationships, and dual-storage architecture. Covers topics, memory_items, summaries tables and their connections.",
+    mime_type="text/markdown"
+)
+def get_database_schema() -> str:
+    """Get the database schema documentation.
+
+    This resource provides detailed information about the dual-database
+    architecture (SQLite + ChromaDB), table schemas, and data relationships.
+    """
+    return read_documentation_file("database_schema.md")
+
+
+@mcp.resource(
+    uri="memory://docs/roadmap",
+    name="project-roadmap",
+    description="Current development status, completed features, in-progress work, planned improvements, known issues, and technical debt.",
+    mime_type="text/markdown"
+)
+def get_roadmap() -> str:
+    """Get the project roadmap and development plan.
+
+    This resource provides information about the project's current status,
+    future plans, and known limitations.
+    """
+    return read_documentation_file("roadmap.md")
+
+
+# -------------------------
+# Tools
 # -------------------------
 
 @mcp.tool()

@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 from typing import List, Optional, Literal
 
 # Get the absolute path to the project root
@@ -8,10 +9,13 @@ project_root = os.path.abspath(os.path.join(current_dir, '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from config import OPENROUTER_API_KEY
+from config import OPENROUTER_API_KEY, ENABLE_AUTO_BACKUP
 from db import SQLiteManager, ChromaManager
 from utils import create_memory_id, timestamp, format_response
 from utils.summarizer import Summarizer
+from utils.backup import should_create_backup, create_backup
+
+logger = logging.getLogger(__name__)
 
 # Initialize database managers
 sqlite_manager = SQLiteManager()
@@ -66,16 +70,24 @@ def store_memory(
         tags: List[str] = []
 ) -> dict:
     """Store new information in the persistent memory system.
-    
+
     Args:
         content: The text content to store in memory.
         topic: The primary topic or category for this content.
         tags: Optional list of tags for better retrieval.
-        
+
     Returns:
         dict: Status and ID of the stored content
     """
     try:
+        # Automatic backup check (if enabled)
+        if ENABLE_AUTO_BACKUP and should_create_backup():
+            backup_file = create_backup()
+            if backup_file:
+                logger.info(f"Automatic backup created: {backup_file}")
+            else:
+                logger.warning("Automatic backup failed, continuing with storage")
+
         memory_id = create_memory_id()
         now = timestamp()
 
@@ -198,15 +210,11 @@ def retrieve_memory(
             else:
                 print(f"Warning: Summary ID {summary_id} not found in SQLite.")
 
-        return memory_items if memory_items else [
-            format_response(success=True, message="No matching memories found")
-        ]
+        return memory_items
 
     except Exception as e:
-        return [format_response(
-            success=False,
-            message=f"Error retrieving from memory: {str(e)}"
-        )]
+        print(f"Error retrieving from memory: {str(e)}")
+        return []
 
 
 def update_memory(
@@ -339,18 +347,27 @@ def delete_memory(
         dict: Status of the deletion operation.
     """
     try:
+        # Step 1: Get all summaries BEFORE deleting (to retrieve IDs for Chroma)
+        all_summaries = sqlite_manager.list_summary_types_by_memory_id(memory_id)
+
+        # Step 2: Delete Chroma summary embeddings using the retrieved IDs
+        chroma_summary_delete_success = True
+        if all_summaries:
+            for summary_info in all_summaries:
+                summary = sqlite_manager.get_summary(memory_id, summary_info["summary_type"])
+                if summary:
+                    result = chroma_manager.delete_summary_embeddings(summary["id"])
+                    chroma_summary_delete_success = chroma_summary_delete_success and result
+
+        # Step 3: Delete memory from SQLite (will cascade delete summaries)
         sqlite_success = sqlite_manager.delete_memory(memory_id)
+
+        # Step 4: Delete memory embedding from Chroma
         chroma_success = chroma_manager.delete_memory(memory_id)
 
-        # New: Delete associated summaries
-        sqlite_summary_delete_success = sqlite_manager.delete_summaries(memory_id)
+        # Note: sqlite_manager.delete_summaries() is now redundant (cascade handles it)
 
-        default_summary = sqlite_manager.get_summary(memory_id, "abstractive_medium")
-        chroma_summary_delete_success = True
-        if default_summary:
-            chroma_summary_delete_success = chroma_manager.delete_summary_embeddings(default_summary["id"])
-
-        if sqlite_success and chroma_success and sqlite_summary_delete_success and chroma_summary_delete_success:
+        if sqlite_success and chroma_success and chroma_summary_delete_success:
             return format_response(
                 success=True,
                 message=f"Memory item {memory_id} and its summaries deleted successfully"
@@ -362,7 +379,6 @@ def delete_memory(
                 data={
                     "sqlite_success": sqlite_success,
                     "chroma_success": chroma_success,
-                    "sqlite_summary_delete_success": sqlite_summary_delete_success,
                     "chroma_summary_delete_success": chroma_summary_delete_success
                 }
             )

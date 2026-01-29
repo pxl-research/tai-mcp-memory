@@ -166,8 +166,11 @@ logs/
 **/documents/
 **/store/
 **/tmp/
-#**/test*.py
 **/data/*
+
+# memory server data
+memory_db/
+backups/
 
 # intellij
 .idea/
