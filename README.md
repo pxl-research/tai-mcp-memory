@@ -4,45 +4,97 @@
 
 The MCP Memory Server provides persistent, semantic memory for LLM agents. It combines SQLite for structured storage and ChromaDB for vector-based semantic search, with automatic summarization for efficient retrieval.
 
-## Technologies Used
+**Technologies**: Python 3.10+, FastMCP, SQLite, ChromaDB, OpenRouter (LLM summarization)
 
-- Python 3.9+
-- FastMCP
-- SQLite
-- ChromaDB
-- OpenRouter (LLM summarization)
-- python-dotenv, pydantic, openai
+## Available Tools
 
-## Installation Instructions
+- `memory_store` - Store new memories with topic and tags
+- `memory_retrieve` - Semantic search across memories
+- `memory_update` - Update existing memories
+- `memory_list_topics` - List all topics with memory counts
+- `memory_status` - Check database statistics
+- `memory_summarize` - Manually trigger summarization
 
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-Create `.env` (or export):
-
-```
-DB_PATH=./memory_db
-OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_ENDPOINT=https://api.openrouter.ai/v1  # optional
-```
-
-## Running the Project
+## Quick Start
 
 ```bash
-python memory_server.py
+# 1. Install uv
+pip install uv
+
+# 2. Clone and setup
+git clone <repository-url>
+cd tai-mcp-memory
+uv sync --no-install-project
+
+# 3. Configure environment
+cp .env.example .env  # Or create .env manually
+# Add your OPENROUTER_API_KEY to .env
+
+# 4. Add to Claude Code
+claude mcp add --transport stdio tai-memory -- \
+  uv --directory $(pwd) run memory_server.py
+
+# 5. Verify
+claude mcp list
 ```
 
-Runs an MCP server over stdio. Point your MCP client to this command (tool namespace: `memory_server`).
+## Configuration
+
+Create a `.env` file in the project root:
+
+```bash
+# Required
+OPENROUTER_API_KEY=sk-or-v1-your-key-here
+
+# Optional
+DB_PATH=./memory_db                              # Default: ./memory_db
+OPENROUTER_ENDPOINT=https://api.openrouter.ai/v1 # Default: https://api.openrouter.ai/v1
+```
+
+**Note**: Without a valid `OPENROUTER_API_KEY`, storage works but automatic summarization will be disabled.
+
+## MCP Client Integration
+
+### Claude Code (Recommended)
+
+```bash
+claude mcp add --transport stdio tai-memory -- \
+  uv --directory /path/to/tai-mcp-memory run memory_server.py
+```
+
+Replace `/path/to/tai-mcp-memory` with your actual project path.
+
+Verify connection:
+```bash
+claude mcp list
+```
+
+### Other MCP Clients (VS Code/Cline, etc.)
+
+Add to your MCP client configuration:
+
+```json
+{
+  "memory_server": {
+    "type": "stdio",
+    "command": "uv",
+    "args": [
+      "--directory",
+      "/path/to/tai-mcp-memory/",
+      "run",
+      "memory_server.py"
+    ]
+  }
+}
+```
 
 ## Usage Patterns
 
-The memory system is designed for **proactive use** by LLM agents. Here are common patterns and examples:
+The memory system is designed for **proactive use** by LLM agents. Here are common patterns:
 
 ### Pattern 1: Starting Every Conversation
 
-**Always check for relevant context at the beginning of a conversation:**
+Always check for relevant context at the beginning of a conversation:
 
 ```
 Assistant: Let me check if I have any context about your project...
@@ -55,7 +107,7 @@ you prefer JWT tokens with refresh tokens stored in httpOnly cookies...
 
 ### Pattern 2: User Shares Preferences
 
-**Store preferences immediately when user provides them:**
+Store preferences immediately when user provides them:
 
 ```
 User: I prefer functional programming and try to avoid classes when possible.
@@ -69,7 +121,7 @@ User: I prefer functional programming and try to avoid classes when possible.
 
 ### Pattern 3: User References Past Work
 
-**Retrieve context when user mentions previous interactions:**
+Retrieve context when user mentions previous interactions:
 
 ```
 User: Remember when we implemented that authentication system?
@@ -79,7 +131,7 @@ User: Remember when we implemented that authentication system?
 
 ### Pattern 4: Completing Significant Work
 
-**Store architectural decisions and rationale after completing work:**
+Store architectural decisions and rationale after completing work:
 
 ```
 # After implementing JWT authentication with refresh tokens
@@ -92,7 +144,7 @@ User: Remember when we implemented that authentication system?
 
 ### Pattern 5: Checking for Existing Patterns
 
-**Before making recommendations, check for past decisions:**
+Before making recommendations, check for past decisions:
 
 ```
 User: Should we use Redux for state management?
@@ -104,71 +156,49 @@ Assistant: Based on our previous discussions, you've preferred simpler solutions
 Given your project size, React Context might be more appropriate than Redux...
 ```
 
-## Database
+## Development
 
-- SQLite tables: topics, memory_items, summaries
-- Chroma collections: memory_items, topics, summaries
-- Diagram and details: see [database_schema.md](docs/database_schema.md)
+### Alternative Installation (pip)
 
-## Testing
+If you prefer traditional Python environments:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### Running Tests
+
+```bash
+# Using uv
+uv run tests/test_sqlite_manager.py
+uv run tests/test_chroma_manager.py
+uv run tests/test_core_memory_service.py
+uv run tests/test_auxiliary_memory_service.py
+
+# Using Python (with activated venv)
 python tests/test_sqlite_manager.py
 python tests/test_chroma_manager.py
 python tests/test_core_memory_service.py
 python tests/test_auxiliary_memory_service.py
 ```
 
-## Notes
+### Database Structure
 
-- Dual writes are not atomic across SQLite/Chroma.
-- Enable a valid OPENROUTER_API_KEY for summarization; without it, storage works but summaries won't.
-- Tags are stored comma‑separated in SQLite.
+- **SQLite tables**: topics, memory_items, summaries
+- **Chroma collections**: memory_items, topics, summaries
+- See [database_schema.md](docs/database_schema.md) for details
 
-## Background Information
+**Note**: Dual writes are not atomic across SQLite/Chroma.
+
+### Background Documentation
 
 - [Root folder background](docs/bg_info_root.md)
 - [Database layer (`db/`)](docs/bg_info_db.md)
 - [Memory service layer (`memory_service/`)](docs/bg_info_memory_service.md)
 - [Utilities (`utils/`)](docs/bg_info_utils.md)
 - [Tests (`tests/`)](docs/bg_info_tests.md)
-
-## MCP client integration (example)
-
-Add this server to your MCP client settings (VS Code/Cline, Claude Code, etc.) to run over stdio. Adjust paths for your environment.
-
-```json
-{
-  "memory_server": {
-    "autoApprove": [
-      "memory_store",
-      "memory_retrieve",
-      "memory_update",
-      "memory_list_topics",
-      "memory_status",
-      "memory_summarize"
-    ],
-    "disabled": false,
-    "timeout": 60,
-    "type": "stdio",
-    "command": "uv",
-    "args": [
-      "--directory",
-      "/path/to/tai-mcp-memory/",
-      "run",
-      "memory_server.py"
-    ],
-    "env": {
-      "DB_PATH": "/path/to/tai-mcp-memory/data/"
-    }
-  }
-}
-```
-
-Notes:
-
-- Replace `/path/to/tai-mcp-memory/` with your local path.
-- You can also run with `python memory_server.py` if you’re not using `uv`.
 
 ## License
 
