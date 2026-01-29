@@ -1,4 +1,7 @@
+# Enable test mode to use separate test database
 import os
+os.environ['TEST_MODE'] = '1'
+
 import sys
 
 # Get the absolute path to the project root

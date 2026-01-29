@@ -3,8 +3,11 @@ Test to verify the deletion bug fix - ensures Chroma summary embeddings
 are properly deleted when a memory is deleted.
 """
 
-import sys
+# Enable test mode to use separate test database
 import os
+os.environ['TEST_MODE'] = '1'
+
+import sys
 
 # Add the project root to the Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))

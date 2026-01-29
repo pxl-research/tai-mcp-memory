@@ -4,7 +4,11 @@ Test to verify the cascade delete bug fix in update_memory.
 This test ensures that when updating the topic of the last memory in a topic,
 the memory is not cascade-deleted due to the foreign key constraint.
 """
+
+# Enable test mode to use separate test database
 import os
+os.environ['TEST_MODE'] = '1'
+
 import sys
 
 # Get the absolute path to the project root
