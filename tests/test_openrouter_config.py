@@ -3,8 +3,11 @@ Test to verify the OpenRouter endpoint configuration fix - ensures
 the client uses the config value instead of hardcoded URL.
 """
 
-import sys
+# Enable test mode to use separate test database
 import os
+os.environ['TEST_MODE'] = '1'
+
+import sys
 
 # Add the project root to the Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))

@@ -9,8 +9,15 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Check for test mode
+_TEST_MODE = os.getenv('TEST_MODE', '0') == '1'
+
 # Database paths
-DB_PATH = os.getenv("DB_PATH", "./memory_db")
+if _TEST_MODE:
+    DB_PATH = "./test_db"
+else:
+    DB_PATH = os.getenv("DB_PATH", "./memory_db")
+
 SQLITE_PATH = os.path.join(DB_PATH, "memory.sqlite")
 CHROMA_PATH = os.path.join(DB_PATH, "chroma")
 

@@ -171,6 +171,7 @@ logs/
 # memory server data
 memory_db/
 backups/
+test_db/
 
 # intellij
 .idea/

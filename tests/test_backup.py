@@ -4,7 +4,10 @@ Test script for backup functionality.
 This script tests the backup utilities and integration with the memory system.
 """
 
+# Enable test mode to use separate test database
 import os
+os.environ['TEST_MODE'] = '1'
+
 import sys
 import time
 from pathlib import Path

@@ -3,8 +3,11 @@ Test to verify the return shape consistency fix - ensures retrieve_memory
 always returns a list of dicts, never format_response dicts.
 """
 
-import sys
+# Enable test mode to use separate test database
 import os
+os.environ['TEST_MODE'] = '1'
+
+import sys
 
 # Add the project root to the Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
