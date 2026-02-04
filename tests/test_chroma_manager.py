@@ -1,4 +1,7 @@
+# Enable test mode to use separate test database
 import os
+os.environ['TEST_MODE'] = '1'
+
 import sys
 import uuid
 import json
