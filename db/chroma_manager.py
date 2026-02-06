@@ -83,15 +83,17 @@ class ChromaManager:
     def store_memory(self, memory_id: str,
                      content: str,
                      topic: str,
-                     tags: List[str]) -> bool:
+                     tags: List[str],
+                     content_size: int = None) -> bool:
         """Store a memory item in ChromaDB.
-        
+
         Args:
             memory_id: Unique ID for the memory item
             content: The content to store
             topic: The topic category
             tags: List of tags
-            
+            content_size: Size of the content in characters (optional)
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -101,16 +103,22 @@ class ChromaManager:
 
             tags_json = json.dumps(tags)  # Serialized as JSON string
 
+            metadata = {
+                "id": memory_id,
+                "topic": topic,
+                "tags": tags_json,
+                "created_at": now,
+                "updated_at": now
+            }
+
+            # Add content_size if provided
+            if content_size is not None:
+                metadata["content_size"] = content_size
+
             collection.add(
                 ids=[memory_id],
                 documents=[content],
-                metadatas=[{
-                    "id": memory_id,
-                    "topic": topic,
-                    "tags": tags_json,
-                    "created_at": now,
-                    "updated_at": now
-                }]
+                metadatas=[metadata]
             )
 
             return True

@@ -132,6 +132,86 @@ def test_delete_memory(store_result):
         print(f"Error: {delete_result['message']}")
 
 
+def test_size_based_summarization():
+    """Test that content of different sizes gets appropriate summarization strategies."""
+    print("Testing size-based summarization...")
+
+    # Test 1: Tiny content (<500 chars) - should use content directly (no LLM call)
+    print("\n1. Testing tiny content (should use content directly)...")
+    tiny_content = "User prefers snake_case for variable names"
+    tiny_result = store_memory(content=tiny_content, topic="preferences", tags=["coding_style"])
+
+    if tiny_result['status'] == 'success':
+        content_size = tiny_result.get('content_size', 0)
+        summary_type = tiny_result.get('summary', {}).get('summary_type')
+        summary_generated = tiny_result.get('summary', {}).get('summary_generated')
+
+        print(f"   Content size: {content_size} chars")
+        print(f"   Summary type: {summary_type}")
+        print(f"   Summary generated: {summary_generated}")
+
+        if content_size < 500 and summary_type == "direct_tiny" and summary_generated:
+            print("   Tiny content test: PASSED ✓ (uses content directly, no LLM call)")
+        else:
+            print("   Tiny content test: FAILED ✗")
+    else:
+        print(f"   Tiny content test: FAILED ✗ - {tiny_result.get('message')}")
+
+    # Test 2: Small content (500-2000 chars) - should use extractive/short
+    print("\n2. Testing small content (should use extractive/short)...")
+    small_content = "Quantum computing is a rapidly evolving field that leverages quantum mechanics principles to perform computations. Unlike classical computers that use bits, quantum computers use qubits which can exist in superposition. This allows them to process multiple states simultaneously, potentially solving certain problems exponentially faster than classical computers. Key applications include cryptography, drug discovery, and optimization problems. However, building stable quantum computers remains challenging due to decoherence and error rates."
+    small_result = store_memory(content=small_content, topic="quantum_computing", tags=["technology", "computing"])
+
+    if small_result['status'] == 'success':
+        content_size = small_result.get('content_size', 0)
+        summary_type = small_result.get('summary', {}).get('summary_type')
+        summary_generated = small_result.get('summary', {}).get('summary_generated')
+
+        print(f"   Content size: {content_size} chars")
+        print(f"   Summary type: {summary_type}")
+        print(f"   Summary generated: {summary_generated}")
+
+        if 500 <= content_size < 2000 and summary_type == "extractive_short" and summary_generated:
+            print("   Small content test: PASSED ✓")
+        else:
+            print("   Small content test: FAILED ✗")
+    else:
+        print(f"   Small content test: FAILED ✗ - {small_result.get('message')}")
+
+    # Test 3: Large content (>=2000 chars) - should use abstractive/medium
+    print("\n3. Testing large content (should use abstractive/medium)...")
+    large_content = """
+    Mind uploading is a speculative process of whole brain emulation in which a brain scan is used to completely emulate the mental state of the individual in a digital computer. The computer would then run a simulation of the brain's information processing, such that it would respond in essentially the same way as the original brain and experience having a sentient conscious mind.
+
+    The fundamental premise of mind uploading relies on the philosophical assumption that consciousness and personal identity are substrate-independent - meaning that the essence of who you are could theoretically exist on any sufficiently complex computational system, not just biological neurons. This controversial idea challenges traditional notions of what it means to be human and raises profound questions about the nature of consciousness itself.
+
+    Proponents argue that mind uploading could offer a form of digital immortality, allowing human consciousness to persist beyond the biological limitations of the physical body. The uploaded mind could potentially exist in virtual environments, operate robotic bodies, or even be copied and distributed across multiple platforms. This could revolutionize our understanding of life, death, and personal identity.
+
+    However, significant technical and philosophical challenges remain. From a technical standpoint, we would need to map every neuron, synapse, and neurotransmitter in a human brain - estimated at around 86 billion neurons and trillions of connections. Current brain imaging technology is nowhere near capable of this level of detail while preserving the living brain. Additionally, we would need computational systems powerful enough to simulate this complexity in real-time.
+
+    Philosophically, questions persist about whether an upload would truly be the same person or merely a copy. The continuity of consciousness problem asks: if your brain is scanned and simulated, is the digital version really you, or just a replica that thinks it's you? What happens to your subjective experience during the transition? These questions touch on deep issues in the philosophy of mind and personal identity that remain unresolved.
+    """
+    large_result = store_memory(content=large_content, topic="mind_uploading", tags=["neuroscience", "consciousness", "philosophy"])
+
+    if large_result['status'] == 'success':
+        content_size = large_result.get('content_size', 0)
+        summary_type = large_result.get('summary', {}).get('summary_type')
+        summary_generated = large_result.get('summary', {}).get('summary_generated')
+
+        print(f"   Content size: {content_size} chars")
+        print(f"   Summary type: {summary_type}")
+        print(f"   Summary generated: {summary_generated}")
+
+        if content_size >= 2000 and summary_type == "abstractive_medium" and summary_generated:
+            print("   Large content test: PASSED ✓")
+        else:
+            print("   Large content test: FAILED ✗")
+    else:
+        print(f"   Large content test: FAILED ✗ - {large_result.get('message')}")
+
+    print("\nSize-based summarization tests complete!")
+
+
 if __name__ == "__main__":
     test_initialization()
     print()
@@ -163,3 +243,8 @@ if __name__ == "__main__":
     if store_result_2['status'] == 'success':
         test_delete_memory(store_result_2)
         print()
+
+    # test size-based summarization
+    print("=" * 60)
+    test_size_based_summarization()
+    print("=" * 60)

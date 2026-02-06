@@ -9,7 +9,12 @@ project_root = os.path.abspath(os.path.join(current_dir, '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from config import OPENROUTER_API_KEY, ENABLE_AUTO_BACKUP
+from config import (
+    OPENROUTER_API_KEY,
+    ENABLE_AUTO_BACKUP,
+    TINY_CONTENT_THRESHOLD,
+    SMALL_CONTENT_THRESHOLD
+)
 from db import SQLiteManager, ChromaManager
 from utils import create_memory_id, timestamp, format_response
 from utils.summarizer import Summarizer
@@ -90,18 +95,36 @@ def store_memory(
 
         memory_id = create_memory_id()
         now = timestamp()
+        content_size = len(content)
 
         # Store in SQLite
         sqlite_success = sqlite_manager.store_memory(memory_id, content, topic, tags)
 
-        # Store in ChromaDB
-        chroma_success = chroma_manager.store_memory(memory_id, content, topic, tags)
+        # Store in ChromaDB with content_size metadata
+        chroma_success = chroma_manager.store_memory(memory_id, content, topic, tags, content_size)
 
         # Update topic in ChromaDB
         topic_success = chroma_manager.update_topic(topic, tags)
 
-        # Generate and store summary
-        generated_summary = summarizer.generate_summary(content, summary_type="abstractive", length="medium")
+        # Size-based summarization strategy
+        generated_summary = None
+        summary_type_used = None
+
+        if content_size < TINY_CONTENT_THRESHOLD:
+            # Use content directly as "summary" for tiny content (no LLM call needed)
+            generated_summary = content  # Embed the content itself
+            summary_type_used = "direct_tiny"
+            logger.info(f"Using content directly for tiny content ({content_size} chars) - no LLM summarization")
+        elif content_size < SMALL_CONTENT_THRESHOLD:
+            # Use extractive/short summary for small content
+            generated_summary = summarizer.generate_summary(content, summary_type="extractive", length="short")
+            summary_type_used = "extractive_short"
+            logger.info(f"Using extractive/short summary for small content ({content_size} chars)")
+        else:
+            # Use abstractive/medium summary for larger content (current behavior)
+            generated_summary = summarizer.generate_summary(content, summary_type="abstractive", length="medium")
+            summary_type_used = "abstractive_medium"
+            logger.info(f"Using abstractive/medium summary for larger content ({content_size} chars)")
 
         summary_stored = False
         summary_embedding_stored = False
@@ -110,14 +133,15 @@ def store_memory(
         if generated_summary:
             summary_stored = sqlite_manager.store_summary(summary_id,
                                                           memory_id,
-                                                          "abstractive_medium",
+                                                          summary_type_used,
                                                           generated_summary)
             summary_embedding_stored = chroma_manager.store_summary_embedding(
                 summary_id,
                 generated_summary,
-                {"memory_id": memory_id, "summary_type": "abstractive_medium", "topic": topic}
+                {"memory_id": memory_id, "summary_type": summary_type_used, "topic": topic}
             )
         else:
+            # Warn if we tried to generate a summary but failed
             print(
                 f"Warning: Failed to generate summary for memory_id {memory_id}. Original content stored without summary.")
 
@@ -130,8 +154,10 @@ def store_memory(
                     "topic": topic,
                     "tags": tags,
                     "timestamp": now,
+                    "content_size": content_size,
                     "summary": {
                         "summary_generated": bool(generated_summary),
+                        "summary_type": summary_type_used,
                         "summary_stored": summary_stored,
                         "summary_embedding_stored": summary_embedding_stored,
                         "summary_id": summary_id
@@ -146,8 +172,10 @@ def store_memory(
                     "sqlite_success": sqlite_success,
                     "chroma_success": chroma_success,
                     "topic_success": topic_success,
+                    "content_size": content_size,
                     "summary": {
                         "summary_generated": bool(generated_summary),
+                        "summary_type": summary_type_used,
                         "summary_stored": summary_stored,
                         "summary_embedding_stored": summary_embedding_stored,
                         "summary_id": summary_id

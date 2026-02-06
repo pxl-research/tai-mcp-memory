@@ -33,6 +33,12 @@ OPENROUTER_ENDPOINT = os.getenv("OPENROUTER_ENDPOINT", "https://api.openrouter.a
 # Other configuration
 DEFAULT_MAX_RESULTS = 5
 
+# Content size thresholds (in characters)
+# These control summarization behavior based on content length
+TINY_CONTENT_THRESHOLD = 500    # Skip summarization below this
+SMALL_CONTENT_THRESHOLD = 2000  # Use extractive/short summary below this
+# Content >= 2000 chars uses abstractive/medium (current behavior)
+
 # Backup configuration
 ENABLE_AUTO_BACKUP = os.getenv("ENABLE_AUTO_BACKUP", "true").lower() == "true"
 BACKUP_INTERVAL_HOURS = int(os.getenv("BACKUP_INTERVAL_HOURS", "24"))
