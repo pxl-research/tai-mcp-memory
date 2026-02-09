@@ -110,6 +110,30 @@ If you have your own backup strategy, you can disable automatic backups:
 ENABLE_AUTO_BACKUP=false
 ```
 
+## Size-Based Summarization
+
+The system automatically chooses the summarization strategy based on content size to optimize API costs and relevance:
+
+- **Tiny (<500 chars)**: No LLM call, uses content directly (cost-efficient)
+  - Common for preferences, short notes
+  - Example: "User prefers snake_case for variable names"
+
+- **Small (500-2000 chars)**: Extractive summary (fast, concise)
+  - LLM extracts key sentences from the content
+  - Common for meeting notes, code explanations
+
+- **Large (≥2000 chars)**: Abstractive summary (comprehensive)
+  - LLM generates 3-5 sentence summary
+  - Common for documentation, articles
+
+Configure thresholds in `.env` (optional):
+```bash
+TINY_CONTENT_THRESHOLD=500    # Default: skip LLM for content under 500 chars
+SMALL_CONTENT_THRESHOLD=2000  # Default: use extractive summary under 2000 chars
+```
+
+**Why this matters**: Small snippets don't benefit from abstractive summarization and waste API tokens. This approach saves costs while maintaining semantic search quality.
+
 ## MCP Client Integration
 
 ### Claude Code (Recommended)
@@ -144,6 +168,17 @@ Add to your MCP client configuration:
   }
 }
 ```
+
+### Accessing Documentation via MCP
+
+The server exposes documentation as queryable resources that LLM agents can retrieve programmatically:
+
+- `memory://docs/agents` - Usage guidelines for LLM agents
+- `memory://docs/readme` - This README file
+- `memory://docs/schema` - Database schema documentation
+- `memory://docs/roadmap` - Project status and roadmap
+
+LLM agents can retrieve these via MCP protocol without requiring file system access. This enables agents to self-discover best practices and stay updated on available features.
 
 ## Usage Patterns
 
@@ -227,19 +262,29 @@ pip install -r requirements.txt
 
 ### Running Tests
 
+The project includes 11 test files covering core functionality, database operations, backups, and bug fixes:
+
 ```bash
-# Using uv
+# Using uv (recommended)
 uv run tests/test_sqlite_manager.py
 uv run tests/test_chroma_manager.py
 uv run tests/test_core_memory_service.py
 uv run tests/test_auxiliary_memory_service.py
+uv run tests/test_backup.py
+uv run tests/test_backup_race_condition.py
+uv run tests/test_deletion_fix.py
+uv run tests/test_return_shape.py
+uv run tests/test_openrouter_config.py
+uv run tests/test_sqlite_fk_and_topic.py
+uv run tests/test_update_topic_cascade_bug.py
 
 # Using Python (with activated venv)
 python tests/test_sqlite_manager.py
 python tests/test_chroma_manager.py
-python tests/test_core_memory_service.py
-python tests/test_auxiliary_memory_service.py
+# ... (same pattern for all 11 test files)
 ```
+
+**Note:** Some tests require `OPENROUTER_API_KEY` in `.env` for LLM summarization calls.
 
 ### Database Structure
 

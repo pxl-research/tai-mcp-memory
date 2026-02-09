@@ -2,7 +2,7 @@
 
 Single source for project status, priorities, and planned work. This merges and replaces the previous separate roadmap and development plan.
 
-Last updated: 2026-01-28 (branch: development)
+Last updated: 2026-02-06 (branch: development)
 
 ### Status Overview
 
@@ -14,11 +14,15 @@ Last updated: 2026-01-28 (branch: development)
   - **SQLite foreign keys enabled per-connection** (`PRAGMA foreign_keys=ON`) with logging and verification
   - **Topic count decrement logic** working correctly with defensive checks for data integrity
   - **Test suite for FK cascades and topic management** (`tests/test_sqlite_fk_and_topic.py`)
+  - **Size-based summarization** (3-tier strategy: tiny/small/large content) with configurable thresholds
+  - **Automatic backup system** with thread-safe caching, interval-based backups, and retention management
+  - **MCP Resources feature** exposing 4 documentation resources (agents, readme, schema, roadmap) via MCP protocol
+  - **Deletion bug fix** for Chroma summary embedding cleanup (retrieve summary ID before memory deletion)
 
 - In Progress
 
-  - Documentation refinements (schema, ops, and background docs)
-  - Test stabilization (migrate remaining print-based scripts to pytest)
+  - Documentation updates for blog post (size-based summarization, MCP resources, backup system)
+  - Code quality improvements (logging, type hints, validation) - deferred to post-blog phase
 
 - Next Up
   - Standardize response shapes (apply `format_response` consistently; unify empty-result handling)
@@ -29,9 +33,11 @@ Last updated: 2026-01-28 (branch: development)
 
 1. ~~Enable SQLite foreign keys per-connection (`PRAGMA foreign_keys=ON`).~~ ✅ **COMPLETED**
 2. ~~Fix topic count logic in `_remove_from_topic` (decrement; delete at zero).~~ ✅ **COMPLETED**
-3. **Fix deletion bug:** Memory deletion leaves Chroma summary embeddings orphaned (retrieve summary ID before deletion).
-4. Standardize response shapes (apply `format_response` consistently; unify empty-result handling).
+3. ~~**Fix deletion bug:** Memory deletion leaves Chroma summary embeddings orphaned (retrieve summary ID before deletion).~~ ✅ **COMPLETED**
+4. Standardize response shapes (apply `format_response` consistently; unify empty-result handling). **PARTIALLY COMPLETED** (test_return_shape.py validates current behavior)
 5. ~~Add minimal tests for FK cascades and topic decrement.~~ ✅ **COMPLETED**
+6. ~~Size-based summarization to optimize API costs.~~ ✅ **COMPLETED**
+7. ~~Automatic backup system with thread safety.~~ ✅ **COMPLETED**
 
 ### Phases
 
@@ -61,10 +67,12 @@ Last updated: 2026-01-28 (branch: development)
   - ~~Enable FK pragma in `SQLiteConnection`~~ ✅ **COMPLETED**
   - ~~Fix `_remove_from_topic` decrement logic and prune zero-count topics~~ ✅ **COMPLETED**
   - ~~Introduce basic logging via `logging`~~ ✅ **COMPLETED** (for FK pragma and topic management)
-  - **Fix deletion bug:** Retrieve summary ID before deleting memory to prevent orphaned Chroma embeddings
-  - Normalize retrieval response shapes
-  - Add minimal pytest with temp paths and mocked summarizer
-  - Add test for proper Chroma summary embedding deletion
+  - ~~**Fix deletion bug:** Retrieve summary ID before deleting memory to prevent orphaned Chroma embeddings~~ ✅ **COMPLETED**
+  - ~~Add test for proper Chroma summary embedding deletion~~ ✅ **COMPLETED** (test_deletion_fix.py)
+  - Documentation cleanup for blog post (size-based summarization, MCP resources, backups) **IN PROGRESS**
+  - Code quality improvements: replace print() with logger, add API key validation, fix type hints **DEFERRED**
+  - Normalize retrieval response shapes **DEFERRED** (test_return_shape.py validates current behavior)
+  - Add minimal pytest with temp paths and mocked summarizer **DEFERRED**
 
 - Medium-term (3–4 weeks)
   - Indices for common filters/sorts (e.g., `topic_name`, `created_at`; optional `UNIQUE(memory_id, summary_type)`)
@@ -74,11 +82,14 @@ Last updated: 2026-01-28 (branch: development)
 
 ### Technical Debt & Known Issues
 
-- **Deletion bug:** `delete_memory` function deletes memory from SQLite (triggering FK cascade that deletes summaries), then tries to retrieve the summary to delete its Chroma embedding. Since the summary is already deleted, Chroma summary embeddings are left orphaned. **Fix:** Retrieve summary ID before deleting the memory.
-- Error handling/logging: replace remaining prints in other modules; propagate structured errors consistently
-- Cross-store consistency: no transactional coordination between SQLite and Chroma (deletion bug is an instance of this)
-- Tests: some tests still procedural and print-driven; rely on real paths and network summarization (need pytest migration)
-- Performance: vector search may slow with size; consider indices and caching
+- **Code quality:** Print statements in production code (core_memory_service.py, summarizer.py) instead of proper logging
+- **Validation:** Missing OPENROUTER_API_KEY validation at startup (fails cryptically during summarization)
+- **Type hints:** Invalid type annotations (`any` instead of `Any`, `or None` instead of `Optional[]`)
+- **DRY violations:** Timestamp parsing duplicated 3x in backup.py
+- **Cross-store consistency:** No transactional coordination between SQLite and Chroma; dual writes can diverge on partial failure
+- **Tests:** Some tests still procedural and print-driven; rely on real paths and network summarization (pytest migration in progress)
+- **Performance:** Vector search may slow with scale; consider indices and caching
+- **Configuration:** Hardcoded headers in OpenRouterClient (HTTP-Referer, X-Title) should be configurable
 
 ### Documentation Notes
 
