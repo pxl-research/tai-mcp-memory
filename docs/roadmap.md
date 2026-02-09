@@ -69,8 +69,8 @@ Last updated: 2026-02-06 (branch: development)
   - ~~Introduce basic logging via `logging`~~ ✅ **COMPLETED** (for FK pragma and topic management)
   - ~~**Fix deletion bug:** Retrieve summary ID before deleting memory to prevent orphaned Chroma embeddings~~ ✅ **COMPLETED**
   - ~~Add test for proper Chroma summary embedding deletion~~ ✅ **COMPLETED** (test_deletion_fix.py)
-  - Documentation cleanup for blog post (size-based summarization, MCP resources, backups) **IN PROGRESS**
-  - Code quality improvements: replace print() with logger, add API key validation, fix type hints **DEFERRED**
+  - ~~Documentation cleanup for blog post (size-based summarization, MCP resources, backups)~~ ✅ **COMPLETED**
+  - ~~Code quality improvements: replace print() with logger, add API key validation, fix type hints~~ ✅ **COMPLETED**
   - Normalize retrieval response shapes **DEFERRED** (test_return_shape.py validates current behavior)
   - Add minimal pytest with temp paths and mocked summarizer **DEFERRED**
 
@@ -82,10 +82,10 @@ Last updated: 2026-02-06 (branch: development)
 
 ### Technical Debt & Known Issues
 
-- **Code quality:** Print statements in production code (core_memory_service.py, summarizer.py) instead of proper logging
-- **Validation:** Missing OPENROUTER_API_KEY validation at startup (fails cryptically during summarization)
-- **Type hints:** Invalid type annotations (`any` instead of `Any`, `or None` instead of `Optional[]`)
-- **DRY violations:** Timestamp parsing duplicated 3x in backup.py
+- ~~**Code quality:** Print statements in production code (core_memory_service.py, summarizer.py) instead of proper logging~~ ✅ **FIXED** (replaced with logger calls)
+- ~~**Validation:** Missing OPENROUTER_API_KEY validation at startup (fails cryptically during summarization)~~ ✅ **FIXED** (added startup warnings)
+- ~~**Type hints:** Invalid type annotations (`any` instead of `Any`, `or None` instead of `Optional[]`)~~ ✅ **FIXED** (corrected all type hints)
+- ~~**DRY violations:** Timestamp parsing duplicated 3x in backup.py~~ ✅ **FIXED** (extracted to `_parse_backup_timestamp()` helper)
 - **Cross-store consistency:** No transactional coordination between SQLite and Chroma; dual writes can diverge on partial failure
 - **Tests:** Some tests still procedural and print-driven; rely on real paths and network summarization (pytest migration in progress)
 - **Performance:** Vector search may slow with scale; consider indices and caching
