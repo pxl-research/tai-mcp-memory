@@ -150,20 +150,7 @@ def main():
         print("update_summary content check: FAILED")
     print()
 
-    # Test delete_summaries
-    print("Testing delete_summaries...")
-    if db_manager.delete_summaries(memory_id):
-        print("delete_summaries: PASSED")
-    else:
-        print("delete_summaries: FAILED")
-
-    if db_manager.get_summary(memory_id, summary_type) is None:
-        print("delete_summaries check: PASSED")
-    else:
-        print("delete_summaries check: FAILED")
-    print()
-
-    # Test delete_memory
+    # Test delete_memory (CASCADE should auto-delete summaries)
     print("Testing delete_memory...")
     if db_manager.delete_memory(memory_id):
         print("delete_memory: PASSED")
@@ -173,6 +160,12 @@ def main():
         print("delete_memory check: PASSED")
     else:
         print("delete_memory check: FAILED")
+
+    # Verify CASCADE deleted the summary automatically
+    if db_manager.get_summary(memory_id, summary_type) is None:
+        print("CASCADE summary deletion check: PASSED")
+    else:
+        print("CASCADE summary deletion check: FAILED")
     print()
 
     print("Checking if topics are empty...")

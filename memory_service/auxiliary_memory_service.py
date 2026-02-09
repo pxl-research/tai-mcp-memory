@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 from typing import List, Optional, Literal
 
 # Get the absolute path to the project root
@@ -13,12 +14,21 @@ from db import SQLiteManager, ChromaManager
 from utils import timestamp, format_response
 from utils.summarizer import Summarizer
 
+logger = logging.getLogger(__name__)
+
 # Initialize database managers
 sqlite_manager = SQLiteManager()
 chroma_manager = ChromaManager()
 
 # Initialize summarizer
 summarizer = Summarizer(api_key=OPENROUTER_API_KEY)
+
+# Validate API key and warn if missing
+if not OPENROUTER_API_KEY or OPENROUTER_API_KEY.strip() == "":
+    logger.warning(
+        "OPENROUTER_API_KEY is not set. Summarization features will fail. "
+        "Set OPENROUTER_API_KEY in .env to enable summarization."
+    )
 
 
 def list_topics() -> List[dict]:

@@ -125,8 +125,6 @@ class ChromaManager:
 
         except Exception as e:
             self.logger.error(f"Error storing memory in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
     def search_memories(self, query: str,
@@ -167,8 +165,6 @@ class ChromaManager:
 
         except Exception as e:
             self.logger.error(f"Error searching memories in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return []
 
     def update_memory(self, memory_id: str,
@@ -226,8 +222,6 @@ class ChromaManager:
 
         except Exception as e:
             self.logger.error(f"Error updating memory in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
     def delete_memory(self, memory_id: str) -> bool:
@@ -245,8 +239,6 @@ class ChromaManager:
             return True
         except Exception as e:
             self.logger.error(f"Error deleting memory from ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
     def get_status(self) -> Dict[str, Any]:
@@ -288,8 +280,6 @@ class ChromaManager:
             return True
         except Exception as e:
             self.logger.error(f"Error storing summary embedding in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
     def search_summary_embeddings(self, query: str,
@@ -319,8 +309,6 @@ class ChromaManager:
             return summary_ids
         except Exception as e:
             self.logger.error(f"Error searching summary embeddings in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return []
 
     def delete_summary_embeddings(self, summary_id: str) -> bool:
@@ -338,11 +326,9 @@ class ChromaManager:
             return True
         except Exception as e:
             self.logger.error(f"Error deleting summary embedding from ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
-    def get_summary_by_id(self, summary_id: str) -> Dict[str, Any] or None:
+    def get_summary_by_id(self, summary_id: str) -> Optional[Dict[str, Any]]:
         """Get a summary by its ID.
 
         Args:
@@ -371,8 +357,6 @@ class ChromaManager:
                 return None
         except Exception as e:
             self.logger.error(f"Error getting summary from ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return None
 
     def update_topic(self, topic: str,
@@ -426,11 +410,9 @@ class ChromaManager:
 
         except Exception as e:
             self.logger.error(f"Error updating topic in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
-    def get_topic(self, topic: str) -> Dict[str, Any] or None:
+    def get_topic(self, topic: str) -> Optional[Dict[str, Any]]:
         """Get a topic by name.
 
         Args:
@@ -455,6 +437,4 @@ class ChromaManager:
                 return None
         except Exception as e:
             self.logger.error(f"Error getting topic from ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return None

@@ -1,9 +1,12 @@
 import os
+import logging
 from typing import Optional, Literal
 
 from openai.types.chat import ChatCompletionMessageParam
 
 from utils.open_router_client import OpenRouterClient
+
+logger = logging.getLogger(__name__)
 
 
 class Summarizer:
@@ -40,7 +43,7 @@ class Summarizer:
             summary = response.choices[0].message.content
             return summary
         except Exception as e:
-            print(f"Error generating summary: {e}")
+            logger.error(f"Error generating summary: {e}")
             return None
 
     def _get_system_prompt(

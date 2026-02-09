@@ -29,6 +29,13 @@ chroma_manager = ChromaManager()
 # Initialize summarizer
 summarizer = Summarizer(api_key=OPENROUTER_API_KEY)
 
+# Validate API key and warn if missing
+if not OPENROUTER_API_KEY or OPENROUTER_API_KEY.strip() == "":
+    logger.warning(
+        "OPENROUTER_API_KEY is not set. Memory storage will work, but automatic "
+        "summarization will be disabled. Set OPENROUTER_API_KEY in .env to enable summarization."
+    )
+
 
 def initialize_memory(reset: bool) -> dict:
     """Initialize or reset the memory system databases.
@@ -142,8 +149,8 @@ def store_memory(
             )
         else:
             # Warn if we tried to generate a summary but failed
-            print(
-                f"Warning: Failed to generate summary for memory_id {memory_id}. Original content stored without summary.")
+            logger.warning(
+                f"Failed to generate summary for memory_id {memory_id}. Original content stored without summary.")
 
         if sqlite_success and chroma_success:
             return format_response(
@@ -236,12 +243,12 @@ def retrieve_memory(
 
                     memory_items.append(result_data)
             else:
-                print(f"Warning: Summary ID {summary_id} not found in SQLite.")
+                logger.warning(f"Summary ID {summary_id} not found in SQLite.")
 
         return memory_items
 
     except Exception as e:
-        print(f"Error retrieving from memory: {str(e)}")
+        logger.error(f"Error retrieving from memory: {str(e)}")
         return []
 
 
@@ -318,7 +325,7 @@ def update_memory(
                     )
                 else:
                     # If no existing summary, create one (e.g., if content was added before summarization feature)
-                    print(f"Creating new summary for memory_id {memory_id} after content update.")
+                    logger.info(f"Creating new summary for memory_id {memory_id} after content update.")
                     summary_id = create_memory_id()
                     summary_updated = sqlite_manager.store_summary(summary_id, memory_id, "abstractive_medium",
                                                                    generated_summary)
@@ -328,7 +335,7 @@ def update_memory(
                         {"memory_id": memory_id, "summary_type": "abstractive_medium", "topic": updated_item["topic_name"]}
                     )
             else:
-                print(f"Warning: Failed to regenerate summary for memory_id {memory_id} during update.")
+                logger.warning(f"Failed to regenerate summary for memory_id {memory_id} during update.")
 
         if sqlite_success and chroma_success:
             return format_response(

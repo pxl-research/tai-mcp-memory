@@ -23,6 +23,23 @@ _last_backup_cache: Optional[datetime] = None
 _cache_initialized = False
 
 
+def _parse_backup_timestamp(backup_file: Path) -> Optional[datetime]:
+    """Parse timestamp from backup filename.
+
+    Args:
+        backup_file: Path to backup file (memory_backup_YYYY-MM-DD_HH-MM-SS.zip)
+
+    Returns:
+        datetime object if parsing succeeds, None otherwise
+    """
+    try:
+        timestamp_str = backup_file.stem.replace('memory_backup_', '')
+        return datetime.strptime(timestamp_str, '%Y-%m-%d_%H-%M-%S')
+    except (ValueError, IndexError):
+        logger.warning(f"Skipping backup with invalid filename: {backup_file.name}")
+        return None
+
+
 def get_last_backup_timestamp() -> Optional[datetime]:
     """Get the timestamp of the most recent backup from filename.
 
@@ -43,14 +60,9 @@ def get_last_backup_timestamp() -> Optional[datetime]:
     # Parse timestamps from filenames
     backup_timestamps = []
     for backup_file in backups:
-        try:
-            # Extract: memory_backup_2026-01-29_16-24-55.zip → 2026-01-29_16-24-55
-            timestamp_str = backup_file.stem.replace('memory_backup_', '')
-            timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d_%H-%M-%S')
+        timestamp = _parse_backup_timestamp(backup_file)
+        if timestamp:
             backup_timestamps.append((timestamp, backup_file))
-        except (ValueError, IndexError) as e:
-            logger.warning(f"Skipping backup with invalid filename: {backup_file.name}")
-            continue
 
     if not backup_timestamps:
         return None
@@ -149,13 +161,9 @@ def cleanup_old_backups() -> None:
         # Get all backup files with parsed timestamps
         backup_list = []
         for backup_file in backup_dir.glob("memory_backup_*.zip"):
-            try:
-                timestamp_str = backup_file.stem.replace('memory_backup_', '')
-                timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d_%H-%M-%S')
+            timestamp = _parse_backup_timestamp(backup_file)
+            if timestamp:
                 backup_list.append((timestamp, backup_file))
-            except (ValueError, IndexError):
-                logger.warning(f"Skipping backup with invalid filename: {backup_file.name}")
-                continue
 
         # Sort by timestamp (newest first)
         backups_sorted = sorted(backup_list, key=lambda x: x[0], reverse=True)
@@ -184,11 +192,8 @@ def list_backups() -> list:
 
     backup_list = []
     for backup_file in backup_dir.glob("memory_backup_*.zip"):
-        try:
-            # Parse timestamp from filename
-            timestamp_str = backup_file.stem.replace('memory_backup_', '')
-            timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d_%H-%M-%S')
-
+        timestamp = _parse_backup_timestamp(backup_file)
+        if timestamp:
             stat = backup_file.stat()
             backup_list.append({
                 "timestamp": timestamp,  # For sorting
@@ -197,9 +202,6 @@ def list_backups() -> list:
                 "size_mb": round(stat.st_size / (1024 * 1024), 2),
                 "created": timestamp.strftime("%Y-%m-%d %H:%M:%S")
             })
-        except (ValueError, IndexError):
-            logger.warning(f"Skipping backup with invalid filename: {backup_file.name}")
-            continue
 
     # Sort by timestamp (newest first)
     backup_list.sort(key=lambda x: x["timestamp"], reverse=True)

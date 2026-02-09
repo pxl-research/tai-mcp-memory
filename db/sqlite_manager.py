@@ -162,7 +162,7 @@ class SQLiteManager:
             self.logger.error(f"Error storing memory in SQLite: {e}")
             return False
 
-    def _add_to_topic(self, topic: str, conn: any) -> bool:
+    def _add_to_topic(self, topic: str, conn: Any) -> bool:
         try:
             now = timestamp()
             cursor = conn.cursor()
@@ -191,7 +191,7 @@ class SQLiteManager:
             self.logger.error(f"Error storing memory in SQLite: {e}")
             return False
 
-    def _remove_from_topic(self, topic: str, conn: any) -> bool:
+    def _remove_from_topic(self, topic: str, conn: Any) -> bool:
         try:
             now = timestamp()
             cursor = conn.cursor()
@@ -571,26 +571,4 @@ class SQLiteManager:
 
         except Exception as e:
             self.logger.error(f"Error updating summary in SQLite: {e}")
-            return False
-
-    def delete_summaries(self, memory_id: str) -> bool:
-        """Delete all summaries associated with a memory ID.
-
-        Args:
-            memory_id: The ID of the memory whose summaries to delete
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        try:
-            with SQLiteConnection(SQLITE_PATH) as conn:
-                cursor = conn.cursor()
-
-                cursor.execute(f"DELETE FROM {SUMMARY_COLLECTION} WHERE memory_id = ?", (memory_id,))
-
-                conn.commit()
-                return True
-
-        except Exception as e:
-            self.logger.error(f"Error deleting summaries from SQLite: {e}")
             return False
