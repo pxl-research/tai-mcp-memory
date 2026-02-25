@@ -1,16 +1,17 @@
 # Enable test mode to use separate test database
 import os
-os.environ['TEST_MODE'] = '1'
+
+os.environ["TEST_MODE"] = "1"
 
 import sys
 
 # Get the absolute path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from memory_service.auxiliary_memory_service import list_topics, get_status, summarize_memory
+from memory_service.auxiliary_memory_service import get_status, list_topics, summarize_memory
 from memory_service.core_memory_service import initialize_memory, store_memory
 
 memory_1 = "Mind uploading is a speculative process of whole brain emulation in which a brain scan is used to completely emulate the mental state of the individual in a digital computer. The computer would then run a simulation of the brain's information processing, such that it would respond in essentially the same way as the original brain and experience having a sentient conscious mind."
@@ -26,8 +27,13 @@ def test_list_topics():
 
     # Test case: List topics when no topics exist
     result = list_topics()
-    if (result and isinstance(result, list) and len(result) == 1
-            and 'message' in result[0] and result[0]['message'] == "No topics found"):
+    if (
+        result
+        and isinstance(result, list)
+        and len(result) == 1
+        and "message" in result[0]
+        and result[0]["message"] == "No topics found"
+    ):
         print("list_topics (no topics): PASSED")
         print(f"Result: {result}")
     else:
@@ -57,10 +63,14 @@ def test_get_status():
 
     # Test case: Get status when memory system is empty
     result = get_status()
-    if (result['status'] == 'success' and 'stats' in result and
-            result['stats']['total_memories'] == 0 and
-            result['stats']['total_topics'] == 0 and
-            isinstance(result['stats']['top_topics'], list) and len(result['stats']['top_topics']) == 0):
+    if (
+        result["status"] == "success"
+        and "stats" in result
+        and result["stats"]["total_memories"] == 0
+        and result["stats"]["total_topics"] == 0
+        and isinstance(result["stats"]["top_topics"], list)
+        and len(result["stats"]["top_topics"]) == 0
+    ):
         print("get_status (empty): PASSED")
         print(f"Result: {result}")
     else:
@@ -75,10 +85,14 @@ def test_get_status():
 
     # Test case: Get status after adding memories
     result = get_status()
-    if (result['status'] == 'success' and 'stats' in result and
-            result['stats']['total_memories'] >= 2 and
-            result['stats']['total_topics'] > 0 and
-            isinstance(result['stats']['top_topics'], list) and len(result['stats']['top_topics']) > 0):
+    if (
+        result["status"] == "success"
+        and "stats" in result
+        and result["stats"]["total_memories"] >= 2
+        and result["stats"]["total_topics"] > 0
+        and isinstance(result["stats"]["top_topics"], list)
+        and len(result["stats"]["top_topics"]) > 0
+    ):
         print("get_status (with data): PASSED")
         print(f"Result: {result}")
     else:
@@ -94,17 +108,17 @@ def test_summarize_memory():
 
     # Add a memory to summarize
     store_result = store_a_memory(memory_str=memory_1)
-    if store_result['status'] != 'success':
+    if store_result["status"] != "success":
         print("store_a_memory for summarize_memory test: FAILED")
         print(f"Error: {store_result['message']}")
         return
 
-    memory_id = store_result['memory_id']
+    memory_id = store_result["memory_id"]
 
     # Test case: Summarize by memory_id
     result = summarize_memory(memory_id=memory_id, summary_type="abstractive", length="medium")
     print(result)
-    if result['status'] == 'success' and 'summary' in result:
+    if result["status"] == "success" and "summary" in result:
         print("summarize_memory (by memory_id): PASSED")
         print(f"Summary: {result['summary']}")
     else:
@@ -114,7 +128,7 @@ def test_summarize_memory():
     # Test case: Summarize by query
     query = "test memory"
     result = summarize_memory(query=query, summary_type="query_focused", length="short")
-    if result['status'] == 'success' and 'summary' in result:
+    if result["status"] == "success" and "summary" in result:
         print("summarize_memory (by query): PASSED")
         print(f"Summary: {result['summary']}")
     else:
@@ -122,9 +136,9 @@ def test_summarize_memory():
         print(f"Error: {result['message']}")
 
     # Test case: Summarize by topic
-    topic = memory_1.split(' ')[0]
+    topic = memory_1.split(" ")[0]
     result = summarize_memory(topic=topic, summary_type="extractive", length="detailed")
-    if result['status'] == 'success' and 'summary' in result:
+    if result["status"] == "success" and "summary" in result:
         print("summarize_memory (by topic): PASSED")
         print(f"Summary: {result['summary']}")
     else:
@@ -134,7 +148,7 @@ def test_summarize_memory():
 
 def store_a_memory(memory_str: str):
     content = memory_str
-    wordlist = memory_str.split(' ')
+    wordlist = memory_str.split(" ")
     topic = wordlist[0]
     tags = [topic, wordlist[1], wordlist[2]]
 

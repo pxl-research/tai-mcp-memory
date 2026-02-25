@@ -1,18 +1,19 @@
 # Enable test mode to use separate test database
 import os
-os.environ['TEST_MODE'] = '1'
+
+os.environ["TEST_MODE"] = "1"
 
 import sys
 
 # Get the absolute path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from db.sqlite_manager import SQLiteManager
-from config import SQLITE_PATH
 import uuid
+
+from db.sqlite_manager import SQLiteManager
 
 
 def main():
@@ -31,7 +32,7 @@ def main():
     print()
 
     memory_id = str(uuid.uuid4())
-    print("Memory ID: {}".format(memory_id))
+    print(f"Memory ID: {memory_id}")
 
     # Test store_memory
     print("Testing store_memory...")
@@ -49,7 +50,12 @@ def main():
     print("Testing get_memory...")
     memory = db_manager.get_memory(memory_id)
     print(memory)
-    if memory and memory["content"] == content and memory["topic_name"] == topic and memory["tags"] == tags:
+    if (
+        memory
+        and memory["content"] == content
+        and memory["topic_name"] == topic
+        and memory["tags"] == tags
+    ):
         print("get_memory: PASSED")
     else:
         print("get_memory: FAILED")
@@ -67,8 +73,12 @@ def main():
         print("update_memory: FAILED")
 
     updated_memory = db_manager.get_memory(memory_id)
-    if updated_memory and updated_memory["content"] == new_content and updated_memory["topic_name"] == new_topic and \
-            updated_memory["tags"] == new_tags:
+    if (
+        updated_memory
+        and updated_memory["content"] == new_content
+        and updated_memory["topic_name"] == new_topic
+        and updated_memory["tags"] == new_tags
+    ):
         print("update_memory content check: PASSED")
     else:
         print("update_memory content check: FAILED")
@@ -87,7 +97,7 @@ def main():
     # Test get_status
     print("Testing get_status...")
     status = db_manager.get_status()
-    print("Status: {}".format(status))
+    print(f"Status: {status}")
     if status and status["total_memories"] == 1 and status["total_topics"] >= 1:
         print("get_status: PASSED")
     else:
@@ -180,7 +190,7 @@ def main():
     # Test get_status
     print("Testing get_status...")
     status = db_manager.get_status()
-    print("Status: {}".format(status))
+    print(f"Status: {status}")
     if status and status["total_memories"] == 0 and status["total_topics"] >= 0:
         print("get_status: PASSED")
     else:

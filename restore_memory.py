@@ -11,20 +11,20 @@ Usage:
     python restore_memory.py --file backups/memory_backup_2026-01-29_14-30-00.zip
 """
 
-import os
-import sys
-import shutil
-import zipfile
-from pathlib import Path
-from datetime import datetime
 import argparse
+import os
+import shutil
+import sys
+import zipfile
+from datetime import datetime
+from pathlib import Path
 
 # Add project root to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from config import DB_PATH, BACKUP_PATH
+from config import BACKUP_PATH, DB_PATH
 from utils.backup import list_backups
 
 
@@ -42,7 +42,7 @@ def create_safety_backup() -> str:
     Path(BACKUP_PATH).mkdir(parents=True, exist_ok=True)
 
     # Create the zip archive
-    shutil.make_archive(str(safety_backup_path), 'zip', DB_PATH)
+    shutil.make_archive(str(safety_backup_path), "zip", DB_PATH)
 
     return f"{safety_backup_path}.zip"
 
@@ -72,7 +72,7 @@ def restore_backup(backup_file: str) -> bool:
         print(f"Extracting backup: {backup_file}")
         db_path.mkdir(parents=True, exist_ok=True)
 
-        with zipfile.ZipFile(backup_path, 'r') as zip_ref:
+        with zipfile.ZipFile(backup_path, "r") as zip_ref:
             zip_ref.extractall(db_path)
 
         print("Restore completed successfully!")
@@ -86,11 +86,7 @@ def restore_backup(backup_file: str) -> bool:
 def main():
     """Main entry point for the restore script."""
     parser = argparse.ArgumentParser(description="Restore memory database from backup")
-    parser.add_argument(
-        "--file",
-        type=str,
-        help="Path to the backup file to restore"
-    )
+    parser.add_argument("--file", type=str, help="Path to the backup file to restore")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -122,8 +118,10 @@ def main():
 
         # Prompt for selection
         try:
-            selection = input(f"Select backup to restore [1-{len(backups)}] or 'q' to quit: ").strip()
-            if selection.lower() == 'q':
+            selection = input(
+                f"Select backup to restore [1-{len(backups)}] or 'q' to quit: "
+            ).strip()
+            if selection.lower() == "q":
                 print("Restore cancelled.")
                 sys.exit(0)
 
@@ -132,7 +130,7 @@ def main():
                 print("Invalid selection.")
                 sys.exit(1)
 
-            backup_file = backups[idx]['path']
+            backup_file = backups[idx]["path"]
         except (ValueError, KeyboardInterrupt):
             print("\nRestore cancelled.")
             sys.exit(1)
@@ -149,7 +147,7 @@ def main():
 
     try:
         confirm = input("Type 'yes' to proceed with restore: ").strip().lower()
-        if confirm != 'yes':
+        if confirm != "yes":
             print("Restore cancelled.")
             sys.exit(0)
     except KeyboardInterrupt:

@@ -1,24 +1,24 @@
+import logging
 import os
 import sys
-import logging
-from typing import List, Optional, Literal
+from typing import Literal
 
 # Get the absolute path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from config import (
-    OPENROUTER_API_KEY,
     ENABLE_AUTO_BACKUP,
+    OPENROUTER_API_KEY,
+    SMALL_CONTENT_THRESHOLD,
     TINY_CONTENT_THRESHOLD,
-    SMALL_CONTENT_THRESHOLD
 )
-from db import SQLiteManager, ChromaManager
-from utils import create_memory_id, timestamp, format_response
+from db import ChromaManager, SQLiteManager
+from utils import create_memory_id, format_response, timestamp
+from utils.backup import create_backup, should_create_backup
 from utils.summarizer import Summarizer
-from utils.backup import should_create_backup, create_backup
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ sqlite_manager = SQLiteManager()
 chroma_manager = ChromaManager()
 
 # Initialize summarizer
-summarizer = Summarizer(api_key=OPENROUTER_API_KEY)
+summarizer = Summarizer(api_key=OPENROUTER_API_KEY or "")
 
 # Validate API key and warn if missing
 if not OPENROUTER_API_KEY or OPENROUTER_API_KEY.strip() == "":
@@ -39,10 +39,10 @@ if not OPENROUTER_API_KEY or OPENROUTER_API_KEY.strip() == "":
 
 def initialize_memory(reset: bool) -> dict:
     """Initialize or reset the memory system databases.
-    
+
     Args:
         reset: Whether to reset existing memory databases.
-        
+
     Returns:
         dict: Initialization status
     """
@@ -57,30 +57,20 @@ def initialize_memory(reset: bool) -> dict:
             return format_response(
                 success=True,
                 message="Memory system initialized successfully",
-                data={"reset": reset}
+                data={"reset": reset},
             )
         else:
             return format_response(
                 success=False,
                 message="Error initializing memory system",
-                data={
-                    "sqlite_success": sqlite_success,
-                    "chroma_success": chroma_success
-                }
+                data={"sqlite_success": sqlite_success, "chroma_success": chroma_success},
             )
 
     except Exception as e:
-        return format_response(
-            success=False,
-            message=f"Error initializing memory system: {str(e)}"
-        )
+        return format_response(success=False, message=f"Error initializing memory system: {str(e)}")
 
 
-def store_memory(
-        content: str,
-        topic: str,
-        tags: List[str] = []
-) -> dict:
+def store_memory(content: str, topic: str, tags: list[str] | None = None) -> dict:
     """Store new information in the persistent memory system.
 
     Args:
@@ -91,6 +81,8 @@ def store_memory(
     Returns:
         dict: Status and ID of the stored content
     """
+    if tags is None:
+        tags = []
     try:
         # Automatic backup check (if enabled)
         if ENABLE_AUTO_BACKUP and should_create_backup():
@@ -121,36 +113,44 @@ def store_memory(
             # Use content directly as "summary" for tiny content (no LLM call needed)
             generated_summary = content  # Embed the content itself
             summary_type_used = "direct_tiny"
-            logger.info(f"Using content directly for tiny content ({content_size} chars) - no LLM summarization")
+            logger.info(
+                f"Using content directly for tiny content ({content_size} chars) - no LLM summarization"
+            )
         elif content_size < SMALL_CONTENT_THRESHOLD:
             # Use extractive/short summary for small content
-            generated_summary = summarizer.generate_summary(content, summary_type="extractive", length="short")
+            generated_summary = summarizer.generate_summary(
+                content, summary_type="extractive", length="short"
+            )
             summary_type_used = "extractive_short"
             logger.info(f"Using extractive/short summary for small content ({content_size} chars)")
         else:
             # Use abstractive/medium summary for larger content (current behavior)
-            generated_summary = summarizer.generate_summary(content, summary_type="abstractive", length="medium")
+            generated_summary = summarizer.generate_summary(
+                content, summary_type="abstractive", length="medium"
+            )
             summary_type_used = "abstractive_medium"
-            logger.info(f"Using abstractive/medium summary for larger content ({content_size} chars)")
+            logger.info(
+                f"Using abstractive/medium summary for larger content ({content_size} chars)"
+            )
 
         summary_stored = False
         summary_embedding_stored = False
         summary_id = create_memory_id()
 
         if generated_summary:
-            summary_stored = sqlite_manager.store_summary(summary_id,
-                                                          memory_id,
-                                                          summary_type_used,
-                                                          generated_summary)
+            summary_stored = sqlite_manager.store_summary(
+                summary_id, memory_id, summary_type_used, generated_summary
+            )
             summary_embedding_stored = chroma_manager.store_summary_embedding(
                 summary_id,
                 generated_summary,
-                {"memory_id": memory_id, "summary_type": summary_type_used, "topic": topic}
+                {"memory_id": memory_id, "summary_type": summary_type_used, "topic": topic},
             )
         else:
             # Warn if we tried to generate a summary but failed
             logger.warning(
-                f"Failed to generate summary for memory_id {memory_id}. Original content stored without summary.")
+                f"Failed to generate summary for memory_id {memory_id}. Original content stored without summary."
+            )
 
         if sqlite_success and chroma_success:
             return format_response(
@@ -167,9 +167,9 @@ def store_memory(
                         "summary_type": summary_type_used,
                         "summary_stored": summary_stored,
                         "summary_embedding_stored": summary_embedding_stored,
-                        "summary_id": summary_id
-                    }
-                }
+                        "summary_id": summary_id,
+                    },
+                },
             )
         else:
             return format_response(
@@ -185,32 +185,29 @@ def store_memory(
                         "summary_type": summary_type_used,
                         "summary_stored": summary_stored,
                         "summary_embedding_stored": summary_embedding_stored,
-                        "summary_id": summary_id
-                    }
-                }
+                        "summary_id": summary_id,
+                    },
+                },
             )
 
     except Exception as e:
-        return format_response(
-            success=False,
-            message=f"Error storing content: {str(e)}"
-        )
+        return format_response(success=False, message=f"Error storing content: {str(e)}")
 
 
 def retrieve_memory(
-        query: str,
-        max_results: int = 5,
-        topic: Optional[str] = None,
-        return_type: Literal["full_text", "summary", "both"] = "full_text"
-) -> List[dict]:
+    query: str,
+    max_results: int = 5,
+    topic: str | None = None,
+    return_type: Literal["full_text", "summary", "both"] = "full_text",
+) -> list[dict]:
     """Retrieve information from memory using semantic search.
-    
+
     Args:
         query: The search query to find relevant information.
         max_results: Maximum number of results to return.
         topic: Optional topic to restrict search to.
         return_type: The type of content to return (full_text, summary, or both).
-        
+
     Returns:
         List[dict]: List of matching memory items with content and metadata
     """
@@ -230,7 +227,7 @@ def retrieve_memory(
                         "topic": full_memory_item["topic_name"],
                         "tags": full_memory_item["tags"],
                         "created_at": full_memory_item["created_at"],
-                        "updated_at": full_memory_item["updated_at"]
+                        "updated_at": full_memory_item["updated_at"],
                     }
 
                     if return_type == "full_text":
@@ -253,26 +250,25 @@ def retrieve_memory(
 
 
 def update_memory(
-        memory_id: str,
-        content: Optional[str] = None,
-        topic: Optional[str] = None,
-        tags: Optional[List[str]] = None
+    memory_id: str,
+    content: str | None = None,
+    topic: str | None = None,
+    tags: list[str] | None = None,
 ) -> dict:
     """Update an existing memory item.
-    
+
     Args:
         memory_id: ID of the memory item to update.
         content: New content (if updating content).
         topic: New topic (if changing).
         tags: New tags (if updating).
-        
+
     Returns:
         dict: Status and updated memory details
     """
     if not any([content, topic, tags]):
         return format_response(
-            success=False,
-            message="At least one of content, topic, or tags must be provided"
+            success=False, message="At least one of content, topic, or tags must be provided"
         )
 
     try:
@@ -281,20 +277,20 @@ def update_memory(
 
         if not current_item:
             return format_response(
-                success=False,
-                message=f"Memory item with ID {memory_id} not found"
+                success=False, message=f"Memory item with ID {memory_id} not found"
             )
 
         # Update in SQLite
         sqlite_success = sqlite_manager.update_memory(
-            memory_id=memory_id,
-            content=content,
-            topic=topic,
-            tags=tags
+            memory_id=memory_id, content=content, topic=topic, tags=tags
         )
 
         # Get updated item for ChromaDB update
         updated_item = sqlite_manager.get_memory(memory_id)
+        if updated_item is None:
+            return format_response(
+                success=False, message=f"Memory {memory_id} not found after update"
+            )
 
         # Update in ChromaDB
         chroma_success = chroma_manager.update_memory(
@@ -311,31 +307,47 @@ def update_memory(
         # New: Regenerate and update summary if content changed
         summary_updated = False
         if content is not None:
-            generated_summary = summarizer.generate_summary(updated_item["content"], summary_type="abstractive",
-                                                            length="medium")
+            generated_summary = summarizer.generate_summary(
+                updated_item["content"], summary_type="abstractive", length="medium"
+            )
             if generated_summary:
                 # Assuming there's only one default summary type for now
                 existing_summary = sqlite_manager.get_summary(memory_id, "abstractive_medium")
                 if existing_summary:
-                    summary_updated = sqlite_manager.update_summary(existing_summary["id"], generated_summary)
+                    summary_updated = sqlite_manager.update_summary(
+                        existing_summary["id"], generated_summary
+                    )
                     chroma_manager.store_summary_embedding(  # Re-store to update embedding
                         existing_summary["id"],
                         generated_summary,
-                        {"memory_id": memory_id, "summary_type": "abstractive_medium", "topic": updated_item["topic_name"]}
+                        {
+                            "memory_id": memory_id,
+                            "summary_type": "abstractive_medium",
+                            "topic": updated_item["topic_name"],
+                        },
                     )
                 else:
                     # If no existing summary, create one (e.g., if content was added before summarization feature)
-                    logger.info(f"Creating new summary for memory_id {memory_id} after content update.")
+                    logger.info(
+                        f"Creating new summary for memory_id {memory_id} after content update."
+                    )
                     summary_id = create_memory_id()
-                    summary_updated = sqlite_manager.store_summary(summary_id, memory_id, "abstractive_medium",
-                                                                   generated_summary)
+                    summary_updated = sqlite_manager.store_summary(
+                        summary_id, memory_id, "abstractive_medium", generated_summary
+                    )
                     chroma_manager.store_summary_embedding(
                         summary_id,
                         generated_summary,
-                        {"memory_id": memory_id, "summary_type": "abstractive_medium", "topic": updated_item["topic_name"]}
+                        {
+                            "memory_id": memory_id,
+                            "summary_type": "abstractive_medium",
+                            "topic": updated_item["topic_name"],
+                        },
                     )
             else:
-                logger.warning(f"Failed to regenerate summary for memory_id {memory_id} during update.")
+                logger.warning(
+                    f"Failed to regenerate summary for memory_id {memory_id} during update."
+                )
 
         if sqlite_success and chroma_success:
             return format_response(
@@ -346,11 +358,11 @@ def update_memory(
                     "updated_fields": {
                         "content": content is not None,
                         "topic": topic is not None,
-                        "tags": tags is not None
+                        "tags": tags is not None,
                     },
                     "timestamp": timestamp(),
-                    "summary_updated": summary_updated
-                }
+                    "summary_updated": summary_updated,
+                },
             )
         else:
             return format_response(
@@ -359,20 +371,15 @@ def update_memory(
                 data={
                     "sqlite_success": sqlite_success,
                     "chroma_success": chroma_success,
-                    "summary_updated": summary_updated
-                }
+                    "summary_updated": summary_updated,
+                },
             )
 
     except Exception as e:
-        return format_response(
-            success=False,
-            message=f"Error updating memory item: {str(e)}"
-        )
+        return format_response(success=False, message=f"Error updating memory item: {str(e)}")
 
 
-def delete_memory(
-        memory_id: str
-) -> dict:
+def delete_memory(memory_id: str) -> dict:
     """Delete a memory item from the system.
 
     Args:
@@ -405,7 +412,7 @@ def delete_memory(
         if sqlite_success and chroma_success and chroma_summary_delete_success:
             return format_response(
                 success=True,
-                message=f"Memory item {memory_id} and its summaries deleted successfully"
+                message=f"Memory item {memory_id} and its summaries deleted successfully",
             )
         else:
             return format_response(
@@ -414,11 +421,8 @@ def delete_memory(
                 data={
                     "sqlite_success": sqlite_success,
                     "chroma_success": chroma_success,
-                    "chroma_summary_delete_success": chroma_summary_delete_success
-                }
+                    "chroma_summary_delete_success": chroma_summary_delete_success,
+                },
             )
     except Exception as e:
-        return format_response(
-            success=False,
-            message=f"Error deleting memory item: {str(e)}"
-        )
+        return format_response(success=False, message=f"Error deleting memory item: {str(e)}")

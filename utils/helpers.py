@@ -4,12 +4,12 @@ Helper utilities for the MCP Memory Server.
 
 import datetime
 import uuid
-from typing import Dict, Any
+from typing import Any
 
 
 def create_memory_id() -> str:
     """Generate a unique ID for a memory item.
-    
+
     Returns:
         str: A UUID string
     """
@@ -18,28 +18,27 @@ def create_memory_id() -> str:
 
 def timestamp() -> str:
     """Get the current timestamp.
-    
+
     Returns:
         str: Current time in ISO format
     """
     return datetime.datetime.now().isoformat()
 
 
-def format_response(success: bool, message: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
+def format_response(
+    success: bool, message: str, data: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Format a standard response dictionary.
-    
+
     Args:
         success: Whether the operation was successful
         message: A message describing the result
         data: Optional data to include in the response
-        
+
     Returns:
         dict: A formatted response dictionary
     """
-    response = {
-        "status": "success" if success else "error",
-        "message": message
-    }
+    response: dict[str, Any] = {"status": "success" if success else "error", "message": message}
 
     if data:
         if success:

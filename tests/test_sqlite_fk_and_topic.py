@@ -1,13 +1,14 @@
 # Enable test mode to use separate test database
 import os
-os.environ['TEST_MODE'] = '1'
+
+os.environ["TEST_MODE"] = "1"
 
 import sys
 import uuid
 
 # Ensure project root on path
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
@@ -60,7 +61,9 @@ def test_fk_cascade_on_delete():
 
     # Create memory and an attached summary
     assert_true(db.store_memory(m, "content base", topic, ["x"]), "store memory failed")
-    assert_true(db.store_summary(s, m, "abstractive_medium", "summary here"), "store summary failed")
+    assert_true(
+        db.store_summary(s, m, "abstractive_medium", "summary here"), "store summary failed"
+    )
 
     # Delete memory -> summary should cascade delete
     assert_true(db.delete_memory(m), "delete memory failed")

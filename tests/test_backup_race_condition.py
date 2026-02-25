@@ -7,27 +7,28 @@ that the backup system no longer creates duplicate backups.
 
 # Enable test mode to use separate test database
 import os
-os.environ['TEST_MODE'] = '1'
 
-import sys
-import time
-import threading
-from pathlib import Path
+os.environ["TEST_MODE"] = "1"
+
 import shutil
+import sys
+import threading
+import time
+from pathlib import Path
 
 # Add project root to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from config import BACKUP_PATH, DB_PATH
+from config import BACKUP_PATH
 from utils.backup import (
-    get_last_backup_timestamp,
-    should_create_backup,
     create_backup,
+    get_last_backup_timestamp,
     invalidate_backup_cache,
-    list_backups
+    list_backups,
+    should_create_backup,
 )
 
 
@@ -61,7 +62,7 @@ def test_race_condition_prevention():
             print(f"  Check {i+1}: No backup needed (within interval)")
 
     assert len(results) == 1, f"Expected 1 backup, but created {len(results)}"
-    print(f"\n✓ Passed: Only 1 backup created from 10 rapid checks")
+    print("\n✓ Passed: Only 1 backup created from 10 rapid checks")
     print()
 
     # Clean up for next test
@@ -88,7 +89,7 @@ def test_race_condition_prevention():
     # Launch 5 concurrent threads
     threads = []
     for i in range(5):
-        thread = threading.Thread(target=check_and_backup, args=(i+1,))
+        thread = threading.Thread(target=check_and_backup, args=(i + 1,))
         threads.append(thread)
         thread.start()
 
@@ -97,7 +98,7 @@ def test_race_condition_prevention():
         thread.join()
 
     assert len(thread_results) == 1, f"Expected 1 backup, but created {len(thread_results)}"
-    print(f"\n✓ Passed: Only 1 backup created from 5 concurrent threads")
+    print("\n✓ Passed: Only 1 backup created from 5 concurrent threads")
     print()
 
     print("Test 3: Verify backup timestamp parsing works correctly")
@@ -111,19 +112,17 @@ def test_race_condition_prevention():
     backups = list_backups()
     assert len(backups) == 1, f"Expected 1 backup, found {len(backups)}"
 
-    # Parse timestamp from backup name
-    backup_name = backups[0]['name']
-    timestamp_str = backup_name.replace('memory_backup_', '').replace('.zip', '')
-
+    backup_name = backups[0]["name"]
     print(f"  Backup name: {backup_name}")
     print(f"  Parsed timestamp: {last_backup}")
     print(f"  Created field: {backups[0]['created']}")
 
     # Verify the parsed timestamp matches the created field
-    assert backups[0]['created'] == last_backup.strftime("%Y-%m-%d %H:%M:%S"), \
-        "Timestamp parsing mismatch"
+    assert backups[0]["created"] == last_backup.strftime(
+        "%Y-%m-%d %H:%M:%S"
+    ), "Timestamp parsing mismatch"
 
-    print(f"\n✓ Passed: Timestamp parsing works correctly")
+    print("\n✓ Passed: Timestamp parsing works correctly")
     print()
 
     print("Test 4: Cache invalidation allows new timestamp check")
@@ -136,7 +135,7 @@ def test_race_condition_prevention():
 
     # Invalidate cache
     invalidate_backup_cache()
-    print(f"  Cache invalidated")
+    print("  Cache invalidated")
 
     # After invalidation, it should re-read from filesystem
     # (still within interval, so should be False)
@@ -144,7 +143,7 @@ def test_race_condition_prevention():
     assert should_backup is False, "Should still not create backup within interval"
     print(f"  After invalidation: should_create_backup() = {should_backup}")
 
-    print(f"\n✓ Passed: Cache invalidation works correctly")
+    print("\n✓ Passed: Cache invalidation works correctly")
     print()
 
     print("=" * 60)
@@ -179,7 +178,7 @@ def test_rapid_operations_simulation():
             backup_count += 1
             print(f"  ✓ Backup created: {Path(backup_file).name}")
         else:
-            print(f"  ✓ Backup skipped (within interval)")
+            print("  ✓ Backup skipped (within interval)")
 
         # Small delay like the original problem
         if i < 2:
@@ -230,6 +229,7 @@ def main():
         print("=" * 60)
         print(f"Error: {str(e)}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

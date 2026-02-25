@@ -5,25 +5,24 @@ Provides automatic backup functionality for the memory database,
 including creation, retention management, and timestamp tracking.
 """
 
-import os
-import shutil
 import logging
+import shutil
 import threading
-from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Optional
+from pathlib import Path
+from typing import Any
 
-from config import DB_PATH, BACKUP_PATH, BACKUP_INTERVAL_HOURS, BACKUP_RETENTION_COUNT
+from config import BACKUP_INTERVAL_HOURS, BACKUP_PATH, BACKUP_RETENTION_COUNT, DB_PATH
 
 logger = logging.getLogger(__name__)
 
 # Thread-safe backup tracking
 _backup_lock = threading.Lock()
-_last_backup_cache: Optional[datetime] = None
+_last_backup_cache: datetime | None = None
 _cache_initialized = False
 
 
-def _parse_backup_timestamp(backup_file: Path) -> Optional[datetime]:
+def _parse_backup_timestamp(backup_file: Path) -> datetime | None:
     """Parse timestamp from backup filename.
 
     Args:
@@ -33,14 +32,14 @@ def _parse_backup_timestamp(backup_file: Path) -> Optional[datetime]:
         datetime object if parsing succeeds, None otherwise
     """
     try:
-        timestamp_str = backup_file.stem.replace('memory_backup_', '')
-        return datetime.strptime(timestamp_str, '%Y-%m-%d_%H-%M-%S')
+        timestamp_str = backup_file.stem.replace("memory_backup_", "")
+        return datetime.strptime(timestamp_str, "%Y-%m-%d_%H-%M-%S")
     except (ValueError, IndexError):
         logger.warning(f"Skipping backup with invalid filename: {backup_file.name}")
         return None
 
 
-def get_last_backup_timestamp() -> Optional[datetime]:
+def get_last_backup_timestamp() -> datetime | None:
     """Get the timestamp of the most recent backup from filename.
 
     Parses timestamps from backup filenames (memory_backup_YYYY-MM-DD_HH-MM-SS.zip)
@@ -103,7 +102,7 @@ def should_create_backup() -> bool:
         return time_since_backup >= interval
 
 
-def create_backup() -> Optional[str]:
+def create_backup() -> str | None:
     """Create a backup of the memory database.
 
     Creates a timestamped zip archive of the DB_PATH directory containing
@@ -129,7 +128,7 @@ def create_backup() -> Optional[str]:
 
             # Create the zip archive
             logger.info(f"Creating backup: {backup_name}.zip")
-            shutil.make_archive(str(backup_path), 'zip', DB_PATH)
+            shutil.make_archive(str(backup_path), "zip", DB_PATH)
 
             # Cleanup old backups
             cleanup_old_backups()
@@ -171,7 +170,7 @@ def cleanup_old_backups() -> None:
         # Keep only the most recent N backups
         backups_to_delete = backups_sorted[BACKUP_RETENTION_COUNT:]
 
-        for timestamp, backup in backups_to_delete:
+        for _, backup in backups_to_delete:
             logger.info(f"Deleting old backup: {backup.name}")
             backup.unlink()
 
@@ -190,18 +189,20 @@ def list_backups() -> list:
     if not backup_dir.exists():
         return []
 
-    backup_list = []
+    backup_list: list[dict[str, Any]] = []
     for backup_file in backup_dir.glob("memory_backup_*.zip"):
         timestamp = _parse_backup_timestamp(backup_file)
         if timestamp:
             stat = backup_file.stat()
-            backup_list.append({
-                "timestamp": timestamp,  # For sorting
-                "name": backup_file.name,
-                "path": str(backup_file),
-                "size_mb": round(stat.st_size / (1024 * 1024), 2),
-                "created": timestamp.strftime("%Y-%m-%d %H:%M:%S")
-            })
+            backup_list.append(
+                {
+                    "timestamp": timestamp,  # For sorting
+                    "name": backup_file.name,
+                    "path": str(backup_file),
+                    "size_mb": round(stat.st_size / (1024 * 1024), 2),
+                    "created": timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+            )
 
     # Sort by timestamp (newest first)
     backup_list.sort(key=lambda x: x["timestamp"], reverse=True)
