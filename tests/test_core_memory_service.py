@@ -104,6 +104,36 @@ def test_delete_memory(store_result):
     assert result["status"] != "success", "Expected failure for non-existent memory_id"
 
 
+def test_update_memory_no_fields():
+    initialize_memory(reset=True)
+    result = update_memory("any-id")
+    assert result["status"] == "error"
+    assert "At least one" in result["message"]
+
+
+def test_retrieve_memory_summary_return_type(store_result):
+    topic = store_result["topic"]
+
+    results = retrieve_memory(query=topic, max_results=1, return_type="summary")
+
+    assert len(results) > 0
+    assert "summary" in results[0]
+    assert "content" not in results[0]
+
+
+def test_retrieve_memory_topic_filter():
+    initialize_memory(reset=True)
+    store_memory(content=_MEMORY_STR, topic="mind_uploading", tags=["neuroscience"])
+    store_memory(
+        content="Python is a high-level programming language.", topic="python", tags=["coding"]
+    )
+
+    results = retrieve_memory(query="mind", topic="mind_uploading", max_results=5)
+
+    assert len(results) > 0
+    assert all(r["topic"] == "mind_uploading" for r in results)
+
+
 def test_size_based_summarization():
     initialize_memory(reset=True)
 

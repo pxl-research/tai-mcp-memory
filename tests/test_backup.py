@@ -22,6 +22,8 @@ if project_root not in sys.path:
 
 from config import BACKUP_PATH
 from utils.backup import (
+    _parse_backup_timestamp,
+    cleanup_old_backups,
     create_backup,
     get_last_backup_timestamp,
     list_backups,
@@ -141,6 +143,37 @@ def test_integration():
     except Exception as e:
         print(f"✗ Integration test failed: {str(e)}")
         raise
+
+
+def test_parse_invalid_backup_filename():
+    result = _parse_backup_timestamp(Path("not_a_valid_backup_name.zip"))
+    assert result is None
+
+
+def test_cleanup_old_backups_missing_dir():
+    # Should not raise even when backup dir doesn't exist
+    missing = Path(BACKUP_PATH) / "nonexistent_subdir_xyz"
+
+    import utils.backup as backup_module
+
+    original_path = backup_module.BACKUP_PATH
+    backup_module.BACKUP_PATH = str(missing)
+    try:
+        cleanup_old_backups()  # must not raise
+    finally:
+        backup_module.BACKUP_PATH = original_path
+
+
+def test_list_backups_missing_dir():
+    import utils.backup as backup_module
+
+    original_path = backup_module.BACKUP_PATH
+    backup_module.BACKUP_PATH = "/tmp/tai_mcp_nonexistent_backup_dir_xyz"
+    try:
+        result = list_backups()
+        assert result == []
+    finally:
+        backup_module.BACKUP_PATH = original_path
 
 
 def main():

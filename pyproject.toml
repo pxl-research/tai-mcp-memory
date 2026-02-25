@@ -38,6 +38,10 @@ testpaths = ["tests"]
 log_cli = true
 log_cli_level = "WARNING"
 
+[tool.coverage.report]
+fail_under = 70
+omit = ["memory_server.py", "restore_memory.py", "tests/*"]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
