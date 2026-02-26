@@ -321,10 +321,10 @@ def update_memory(
                     updated_item["content"], summary_type=summary_type_arg, length=length_arg
                 )
             if generated_summary:
-                existing_summary = sqlite_manager.get_summary(memory_id, summary_type_used)
+                existing_summary = sqlite_manager.get_any_summary(memory_id)
                 if existing_summary:
                     summary_updated = sqlite_manager.update_summary(
-                        existing_summary["id"], generated_summary
+                        existing_summary["id"], generated_summary, summary_type_used
                     )
                     chroma_manager.store_summary_embedding(
                         existing_summary["id"],

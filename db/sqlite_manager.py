@@ -555,12 +555,49 @@ class SQLiteManager:
             self.logger.error(f"Error getting summary by ID from SQLite: {e}")
             return None
 
-    def update_summary(self, summary_id: str, new_summary_text: str) -> bool:
+    def get_any_summary(self, memory_id: str) -> dict[str, Any] | None:
+        """Get the first summary for a memory item regardless of summary type.
+
+        Args:
+            memory_id: The ID of the memory to retrieve a summary for
+
+        Returns:
+            Optional[Dict[str, Any]]: The summary item or None if not found
+        """
+        try:
+            with SQLiteConnection(SQLITE_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    f"SELECT * FROM {SUMMARY_COLLECTION} WHERE memory_id = ? LIMIT 1",
+                    (memory_id,),
+                )
+                item = cursor.fetchone()
+
+                if not item:
+                    return None
+
+                return {
+                    "id": item["id"],
+                    "memory_id": item["memory_id"],
+                    "summary_type": item["summary_type"],
+                    "summary_text": item["summary_text"],
+                    "created_at": item["created_at"],
+                    "updated_at": item["updated_at"],
+                }
+
+        except Exception as e:
+            self.logger.error(f"Error getting summary from SQLite: {e}")
+            return None
+
+    def update_summary(
+        self, summary_id: str, new_summary_text: str, summary_type: str | None = None
+    ) -> bool:
         """Update an existing summary item.
 
         Args:
             summary_id: The ID of the summary to update
             new_summary_text: The new summary content
+            summary_type: New summary type (if the type has changed)
 
         Returns:
             bool: True if successful, False otherwise
@@ -570,15 +607,27 @@ class SQLiteManager:
             with SQLiteConnection(SQLITE_PATH) as conn:
                 cursor = conn.cursor()
 
-                cursor.execute(
-                    f"""
-                    UPDATE {SUMMARY_COLLECTION}
-                    SET summary_text = ?,
-                        updated_at   = ?
-                    WHERE id = ?
-                    """,
-                    (new_summary_text, now, summary_id),
-                )
+                if summary_type is not None:
+                    cursor.execute(
+                        f"""
+                        UPDATE {SUMMARY_COLLECTION}
+                        SET summary_text = ?,
+                            summary_type = ?,
+                            updated_at   = ?
+                        WHERE id = ?
+                        """,
+                        (new_summary_text, summary_type, now, summary_id),
+                    )
+                else:
+                    cursor.execute(
+                        f"""
+                        UPDATE {SUMMARY_COLLECTION}
+                        SET summary_text = ?,
+                            updated_at   = ?
+                        WHERE id = ?
+                        """,
+                        (new_summary_text, now, summary_id),
+                    )
 
                 conn.commit()
                 return True
