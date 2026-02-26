@@ -187,7 +187,6 @@ class SQLiteManager:
                     (now, topic),
                 )
 
-            conn.commit()
             return True
         except Exception as e:
             self.logger.error(f"Error storing memory in SQLite: {e}")
@@ -216,7 +215,6 @@ class SQLiteManager:
                     # Delete topic when removing last item
                     cursor.execute(f"DELETE FROM {TOPICS_COLLECTION} WHERE name = ?", (topic,))
 
-            conn.commit()
             return True
         except Exception as e:
             self.logger.error(f"Error removing from topic: {e}")

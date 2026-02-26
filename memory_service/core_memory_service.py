@@ -288,6 +288,11 @@ def update_memory(
             memory_id=memory_id, content=content, topic=topic, tags=tags
         )
 
+        if not sqlite_success:
+            return format_response(
+                success=False, message=f"Failed to update memory {memory_id} in SQLite"
+            )
+
         # Get updated item for ChromaDB update
         updated_item = sqlite_manager.get_memory(memory_id)
         if updated_item is None:
