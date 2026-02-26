@@ -140,7 +140,7 @@ def store_memory(content: str, topic: str, tags: list[str] | None = None) -> dic
         summary_embedding_stored = False
         summary_id = create_memory_id()
 
-        if generated_summary:
+        if sqlite_success and generated_summary:
             summary_stored = sqlite_manager.store_summary(
                 summary_id, memory_id, summary_type_used, generated_summary
             )
@@ -150,7 +150,7 @@ def store_memory(content: str, topic: str, tags: list[str] | None = None) -> dic
                     generated_summary,
                     {"memory_id": memory_id, "summary_type": summary_type_used, "topic": topic},
                 )
-        else:
+        elif not generated_summary:
             # Warn if we tried to generate a summary but failed
             logger.warning(
                 f"Failed to generate summary for memory_id {memory_id}. Original content stored without summary."

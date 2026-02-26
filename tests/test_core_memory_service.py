@@ -11,6 +11,8 @@ project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+from unittest.mock import patch
+
 import pytest
 
 from memory_service.core_memory_service import (
@@ -197,6 +199,23 @@ def test_size_based_summarization():
     assert result["status"] == "success", f"store large content failed: {result.get('message')}"
     assert result.get("content_size", 0) >= 2000
     assert result.get("summary", {}).get("summary_type") == "abstractive_medium"
+
+
+def test_summary_embedding_skipped_when_store_summary_fails():
+    initialize_memory(reset=True)
+
+    import memory_service.core_memory_service as cms
+
+    with (
+        patch.object(cms.sqlite_manager, "store_summary", return_value=False) as mock_store,
+        patch.object(cms.chroma_manager, "store_summary_embedding") as mock_embed,
+    ):
+        result = store_memory(content=_MEMORY_STR, topic="test_topic", tags=[])
+
+    assert result["status"] == "success"
+    mock_store.assert_called_once()
+    mock_embed.assert_not_called()
+    assert result["summary"]["summary_embedding_stored"] is False
 
 
 if __name__ == "__main__":
