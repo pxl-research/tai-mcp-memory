@@ -16,7 +16,7 @@ project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from db.chroma_manager import ChromaManager
+from config import SUMMARY_COLLECTION
 from memory_service import core_memory_service
 
 
@@ -42,8 +42,9 @@ def test_deletion_bug_fix():
     summary_id = summary_info.get("summary_id")
 
     # Verify the summary embedding exists in Chroma before deletion
-    cm = ChromaManager()
-    summaries_collection = cm.client.get_collection("summaries")
+    summaries_collection = core_memory_service.chroma_manager.client.get_collection(
+        SUMMARY_COLLECTION
+    )
     before_delete = summaries_collection.get(ids=[summary_id])
     assert (
         len(before_delete["ids"]) > 0

@@ -204,12 +204,17 @@ class ChromaManager:
 
             tags_json = json.dumps(new_tags)  # Serialized as JSON string
 
+            updated_metadata = {
+                **current_memory,
+                "topic": new_topic,
+                "tags": tags_json,
+                "updated_at": now,
+            }
+
             collection.update(
                 ids=[memory_id],
                 documents=[new_content],
-                metadatas=[
-                    {"id": memory_id, "topic": new_topic, "tags": tags_json, "updated_at": now}
-                ],
+                metadatas=[updated_metadata],
             )
 
             return True

@@ -35,8 +35,12 @@ DEFAULT_MAX_RESULTS = 5
 
 # Content size thresholds (in characters)
 # These control summarization behavior based on content length
-TINY_CONTENT_THRESHOLD = 500  # Skip summarization below this
-SMALL_CONTENT_THRESHOLD = 2000  # Use extractive/short summary below this
+TINY_CONTENT_THRESHOLD = int(
+    os.getenv("TINY_CONTENT_THRESHOLD", "500")
+)  # Skip summarization below this
+SMALL_CONTENT_THRESHOLD = int(
+    os.getenv("SMALL_CONTENT_THRESHOLD", "2000")
+)  # Use extractive/short summary below this
 # Content >= 2000 chars uses abstractive/medium (current behavior)
 
 # Backup configuration

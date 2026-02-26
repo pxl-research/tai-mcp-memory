@@ -24,7 +24,7 @@ if project_root not in sys.path:
 
 from config import BACKUP_PATH
 from utils.backup import (
-    create_backup,
+    create_backup_if_due,
     get_last_backup_timestamp,
     invalidate_backup_cache,
     list_backups,
@@ -54,8 +54,8 @@ def test_race_condition_prevention():
 
     results = []
     for i in range(10):
-        if should_create_backup():
-            backup_file = create_backup()
+        backup_file = create_backup_if_due()
+        if backup_file:
             results.append(backup_file)
             print(f"  Check {i+1}: Created backup: {Path(backup_file).name}")
         else:
@@ -78,8 +78,8 @@ def test_race_condition_prevention():
 
     def check_and_backup(thread_id):
         """Thread worker that checks and creates backup if needed."""
-        if should_create_backup():
-            backup_file = create_backup()
+        backup_file = create_backup_if_due()
+        if backup_file:
             with lock:
                 thread_results.append((thread_id, backup_file))
                 print(f"  Thread {thread_id}: Created backup")
@@ -173,8 +173,8 @@ def test_rapid_operations_simulation():
         print(f"\nOperation {i+1}:")
 
         # Simulate what happens in store_memory()
-        if should_create_backup():
-            backup_file = create_backup()
+        backup_file = create_backup_if_due()
+        if backup_file:
             backup_count += 1
             print(f"  ✓ Backup created: {Path(backup_file).name}")
         else:

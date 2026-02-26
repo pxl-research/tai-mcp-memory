@@ -113,8 +113,10 @@ def summarize_memory(
         # Search for relevant memories (using full content embeddings for broader search)
         # Note: This might need refinement to search summary embeddings first for efficiency
         # and then retrieve full content for summarization.
+        effective_query = query if query else topic
+        assert effective_query is not None  # guaranteed by elif query or topic: above
         retrieved_memory_ids = chroma_manager.search_memories(
-            query=query if query else "", max_results=10, topic=topic
+            query=effective_query, max_results=10, topic=topic
         )
 
         if not retrieved_memory_ids:

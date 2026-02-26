@@ -64,6 +64,33 @@ def test_update_memory(chroma_man):
     assert memory_id in results, "Updated memory not found in search results"
 
 
+def test_update_memory_preserves_metadata(chroma_man):
+    from config import MEMORY_COLLECTION
+
+    memory_id = str(uuid.uuid4())
+    content = "Original content for metadata preservation test."
+    topic = "meta_topic"
+    tags = ["meta", "test"]
+    content_size = len(content)
+
+    assert chroma_man.store_memory(memory_id, content, topic, tags, content_size)
+
+    # Capture metadata before update
+    collection = chroma_man.client.get_collection(name=MEMORY_COLLECTION)
+    before = collection.get(ids=[memory_id], include=["metadatas"])["metadatas"][0]
+
+    assert chroma_man.update_memory(memory_id, "Updated content.", "new_topic", ["new"])
+
+    after = collection.get(ids=[memory_id], include=["metadatas"])["metadatas"][0]
+
+    assert after["created_at"] == before["created_at"], "created_at was overwritten by update"
+    assert after["content_size"] == content_size, "content_size was lost after update"
+    assert after["id"] == memory_id, "id was lost after update"
+    assert (
+        after["updated_at"] != before["updated_at"] or after["updated_at"] >= before["updated_at"]
+    )
+
+
 def test_update_topic(chroma_man):
     topic = "updated_topic"
     tags = ["test", "topic"]

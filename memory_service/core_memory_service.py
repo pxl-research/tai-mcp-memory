@@ -17,10 +17,28 @@ from config import (
 )
 from db import ChromaManager, SQLiteManager
 from utils import create_memory_id, format_response, timestamp
-from utils.backup import create_backup, should_create_backup
+from utils.backup import create_backup_if_due
 from utils.summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
+
+
+def _determine_summary_strategy(
+    content: str,
+) -> tuple[
+    Literal["direct_tiny", "extractive_short", "abstractive_medium"],
+    Literal["abstractive", "extractive", "query_focused"],
+    Literal["short", "medium", "detailed"],
+]:
+    """Return (summary_type_used, summary_type_arg, length_arg) for the given content size."""
+    size = len(content)
+    if size < TINY_CONTENT_THRESHOLD:
+        return "direct_tiny", "extractive", "short"  # summary_type_arg unused for direct_tiny
+    elif size < SMALL_CONTENT_THRESHOLD:
+        return "extractive_short", "extractive", "short"
+    else:
+        return "abstractive_medium", "abstractive", "medium"
+
 
 # Initialize database managers
 sqlite_manager = SQLiteManager()
@@ -85,12 +103,10 @@ def store_memory(content: str, topic: str, tags: list[str] | None = None) -> dic
         tags = []
     try:
         # Automatic backup check (if enabled)
-        if ENABLE_AUTO_BACKUP and should_create_backup():
-            backup_file = create_backup()
+        if ENABLE_AUTO_BACKUP:
+            backup_file = create_backup_if_due()
             if backup_file:
                 logger.info(f"Automatic backup created: {backup_file}")
-            else:
-                logger.warning("Automatic backup failed, continuing with storage")
 
         memory_id = create_memory_id()
         now = timestamp()
@@ -106,32 +122,19 @@ def store_memory(content: str, topic: str, tags: list[str] | None = None) -> dic
         topic_success = chroma_manager.update_topic(topic, tags)
 
         # Size-based summarization strategy
-        generated_summary = None
-        summary_type_used = None
+        summary_type_used, summary_type_arg, length_arg = _determine_summary_strategy(content)
 
-        if content_size < TINY_CONTENT_THRESHOLD:
-            # Use content directly as "summary" for tiny content (no LLM call needed)
-            generated_summary = content  # Embed the content itself
-            summary_type_used = "direct_tiny"
+        generated_summary: str | None
+        if summary_type_used == "direct_tiny":
+            generated_summary = content
             logger.info(
                 f"Using content directly for tiny content ({content_size} chars) - no LLM summarization"
             )
-        elif content_size < SMALL_CONTENT_THRESHOLD:
-            # Use extractive/short summary for small content
-            generated_summary = summarizer.generate_summary(
-                content, summary_type="extractive", length="short"
-            )
-            summary_type_used = "extractive_short"
-            logger.info(f"Using extractive/short summary for small content ({content_size} chars)")
         else:
-            # Use abstractive/medium summary for larger content (current behavior)
             generated_summary = summarizer.generate_summary(
-                content, summary_type="abstractive", length="medium"
+                content, summary_type=summary_type_arg, length=length_arg
             )
-            summary_type_used = "abstractive_medium"
-            logger.info(
-                f"Using abstractive/medium summary for larger content ({content_size} chars)"
-            )
+            logger.info(f"Using {summary_type_used} summary for content ({content_size} chars)")
 
         summary_stored = False
         summary_embedding_stored = False
@@ -304,43 +307,48 @@ def update_memory(
         if topic is not None:
             chroma_manager.update_topic(topic, updated_item["tags"])
 
-        # New: Regenerate and update summary if content changed
+        # Regenerate and update summary if content changed
         summary_updated = False
         if content is not None:
-            generated_summary = summarizer.generate_summary(
-                updated_item["content"], summary_type="abstractive", length="medium"
+            summary_type_used, summary_type_arg, length_arg = _determine_summary_strategy(
+                updated_item["content"]
             )
+            generated_summary: str | None
+            if summary_type_used == "direct_tiny":
+                generated_summary = updated_item["content"]
+            else:
+                generated_summary = summarizer.generate_summary(
+                    updated_item["content"], summary_type=summary_type_arg, length=length_arg
+                )
             if generated_summary:
-                # Assuming there's only one default summary type for now
-                existing_summary = sqlite_manager.get_summary(memory_id, "abstractive_medium")
+                existing_summary = sqlite_manager.get_summary(memory_id, summary_type_used)
                 if existing_summary:
                     summary_updated = sqlite_manager.update_summary(
                         existing_summary["id"], generated_summary
                     )
-                    chroma_manager.store_summary_embedding(  # Re-store to update embedding
+                    chroma_manager.store_summary_embedding(
                         existing_summary["id"],
                         generated_summary,
                         {
                             "memory_id": memory_id,
-                            "summary_type": "abstractive_medium",
+                            "summary_type": summary_type_used,
                             "topic": updated_item["topic_name"],
                         },
                     )
                 else:
-                    # If no existing summary, create one (e.g., if content was added before summarization feature)
                     logger.info(
                         f"Creating new summary for memory_id {memory_id} after content update."
                     )
                     summary_id = create_memory_id()
                     summary_updated = sqlite_manager.store_summary(
-                        summary_id, memory_id, "abstractive_medium", generated_summary
+                        summary_id, memory_id, summary_type_used, generated_summary
                     )
                     chroma_manager.store_summary_embedding(
                         summary_id,
                         generated_summary,
                         {
                             "memory_id": memory_id,
-                            "summary_type": "abstractive_medium",
+                            "summary_type": summary_type_used,
                             "topic": updated_item["topic_name"],
                         },
                     )
