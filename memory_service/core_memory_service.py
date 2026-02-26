@@ -140,16 +140,17 @@ def store_memory(content: str, topic: str, tags: list[str] | None = None) -> dic
         summary_embedding_stored = False
         summary_id = create_memory_id()
 
-        if generated_summary:
+        if sqlite_success and generated_summary:
             summary_stored = sqlite_manager.store_summary(
                 summary_id, memory_id, summary_type_used, generated_summary
             )
-            summary_embedding_stored = chroma_manager.store_summary_embedding(
-                summary_id,
-                generated_summary,
-                {"memory_id": memory_id, "summary_type": summary_type_used, "topic": topic},
-            )
-        else:
+            if summary_stored:
+                summary_embedding_stored = chroma_manager.store_summary_embedding(
+                    summary_id,
+                    generated_summary,
+                    {"memory_id": memory_id, "summary_type": summary_type_used, "topic": topic},
+                )
+        elif not generated_summary:
             # Warn if we tried to generate a summary but failed
             logger.warning(
                 f"Failed to generate summary for memory_id {memory_id}. Original content stored without summary."
@@ -288,6 +289,11 @@ def update_memory(
             memory_id=memory_id, content=content, topic=topic, tags=tags
         )
 
+        if not sqlite_success:
+            return format_response(
+                success=False, message=f"Failed to update memory {memory_id} in SQLite"
+            )
+
         # Get updated item for ChromaDB update
         updated_item = sqlite_manager.get_memory(memory_id)
         if updated_item is None:
@@ -326,15 +332,16 @@ def update_memory(
                     summary_updated = sqlite_manager.update_summary(
                         existing_summary["id"], generated_summary, summary_type_used
                     )
-                    chroma_manager.store_summary_embedding(
-                        existing_summary["id"],
-                        generated_summary,
-                        {
-                            "memory_id": memory_id,
-                            "summary_type": summary_type_used,
-                            "topic": updated_item["topic_name"],
-                        },
-                    )
+                    if summary_updated:
+                        chroma_manager.store_summary_embedding(
+                            existing_summary["id"],
+                            generated_summary,
+                            {
+                                "memory_id": memory_id,
+                                "summary_type": summary_type_used,
+                                "topic": updated_item["topic_name"],
+                            },
+                        )
                 else:
                     logger.info(
                         f"Creating new summary for memory_id {memory_id} after content update."
@@ -343,15 +350,16 @@ def update_memory(
                     summary_updated = sqlite_manager.store_summary(
                         summary_id, memory_id, summary_type_used, generated_summary
                     )
-                    chroma_manager.store_summary_embedding(
-                        summary_id,
-                        generated_summary,
-                        {
-                            "memory_id": memory_id,
-                            "summary_type": summary_type_used,
-                            "topic": updated_item["topic_name"],
-                        },
-                    )
+                    if summary_updated:
+                        chroma_manager.store_summary_embedding(
+                            summary_id,
+                            generated_summary,
+                            {
+                                "memory_id": memory_id,
+                                "summary_type": summary_type_used,
+                                "topic": updated_item["topic_name"],
+                            },
+                        )
             else:
                 logger.warning(
                     f"Failed to regenerate summary for memory_id {memory_id} during update."
