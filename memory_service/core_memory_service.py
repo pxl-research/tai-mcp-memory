@@ -144,11 +144,12 @@ def store_memory(content: str, topic: str, tags: list[str] | None = None) -> dic
             summary_stored = sqlite_manager.store_summary(
                 summary_id, memory_id, summary_type_used, generated_summary
             )
-            summary_embedding_stored = chroma_manager.store_summary_embedding(
-                summary_id,
-                generated_summary,
-                {"memory_id": memory_id, "summary_type": summary_type_used, "topic": topic},
-            )
+            if summary_stored:
+                summary_embedding_stored = chroma_manager.store_summary_embedding(
+                    summary_id,
+                    generated_summary,
+                    {"memory_id": memory_id, "summary_type": summary_type_used, "topic": topic},
+                )
         else:
             # Warn if we tried to generate a summary but failed
             logger.warning(
@@ -331,15 +332,16 @@ def update_memory(
                     summary_updated = sqlite_manager.update_summary(
                         existing_summary["id"], generated_summary, summary_type_used
                     )
-                    chroma_manager.store_summary_embedding(
-                        existing_summary["id"],
-                        generated_summary,
-                        {
-                            "memory_id": memory_id,
-                            "summary_type": summary_type_used,
-                            "topic": updated_item["topic_name"],
-                        },
-                    )
+                    if summary_updated:
+                        chroma_manager.store_summary_embedding(
+                            existing_summary["id"],
+                            generated_summary,
+                            {
+                                "memory_id": memory_id,
+                                "summary_type": summary_type_used,
+                                "topic": updated_item["topic_name"],
+                            },
+                        )
                 else:
                     logger.info(
                         f"Creating new summary for memory_id {memory_id} after content update."
@@ -348,15 +350,16 @@ def update_memory(
                     summary_updated = sqlite_manager.store_summary(
                         summary_id, memory_id, summary_type_used, generated_summary
                     )
-                    chroma_manager.store_summary_embedding(
-                        summary_id,
-                        generated_summary,
-                        {
-                            "memory_id": memory_id,
-                            "summary_type": summary_type_used,
-                            "topic": updated_item["topic_name"],
-                        },
-                    )
+                    if summary_updated:
+                        chroma_manager.store_summary_embedding(
+                            summary_id,
+                            generated_summary,
+                            {
+                                "memory_id": memory_id,
+                                "summary_type": summary_type_used,
+                                "topic": updated_item["topic_name"],
+                            },
+                        )
             else:
                 logger.warning(
                     f"Failed to regenerate summary for memory_id {memory_id} during update."
