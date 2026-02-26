@@ -2,7 +2,7 @@
 
 This document summarizes the service layer that orchestrates persistence, semantic retrieval, summarization, and status reporting for the MCP Memory Server.
 
-Last updated: 2026-01-28 (branch: development)
+Last updated: 2026-02-06 (branch: development)
 
 ### Files overview
 
@@ -14,8 +14,50 @@ Last updated: 2026-01-28 (branch: development)
     - `initialize_memory(reset: bool) -> dict`:
       - Calls `sqlite_manager.initialize(reset)` and `chroma_manager.initialize(reset)`; reports combined status.
     - `store_memory(content: str, topic: str, tags: List[str] = []) -> dict`:
-      - Generates `memory_id`, stores in SQLite and Chroma, updates Chroma topic doc, generates a medium abstractive summary, stores summary in SQLite and its embedding in Chroma (metadata includes `memory_id`, `summary_type`, `topic`).
-      - Returns success with IDs and summary flags; warns but does not fail overall if summary generation/storage fails.
+      - Generates `memory_id`, calculates `content_size`, stores in SQLite and Chroma (with content_size metadata), updates Chroma topic doc, uses size-based summarization strategy (see below), stores summary in SQLite and its embedding in Chroma (metadata includes `memory_id`, `summary_type`, `topic`).
+      - Checks for automatic backup before storing (if `ENABLE_AUTO_BACKUP=true`).
+      - Returns success with IDs, content_size, summary_type, and summary flags; warns but does not fail overall if summary generation/storage fails.
+
+### Size-Based Summarization Strategy
+
+The system uses a three-tier approach based on content length to optimize API costs and relevance:
+
+1. **Tiny content (<500 chars)**: Uses content directly as embedding
+   - No LLM summarization call (saves API costs)
+   - Summary type: `direct_tiny`
+   - Common for preferences, short notes (e.g., "User prefers snake_case for variable names")
+   - Stored in summaries table and embedded in ChromaDB for semantic search
+
+2. **Small content (500-2000 chars)**: Extractive/short summary
+   - LLM extracts key sentences from the content
+   - Summary type: `extractive_short`
+   - Generated via `summarizer.generate_summary(content, summary_type="extractive", length="short")`
+   - Common for meeting notes, code explanations, brief documentation
+
+3. **Large content (≥2000 chars)**: Abstractive/medium summary
+   - LLM generates comprehensive 3-5 sentence summary
+   - Summary type: `abstractive_medium`
+   - Generated via `summarizer.generate_summary(content, summary_type="abstractive", length="medium")`
+   - Common for documentation, articles, detailed explanations
+
+**Configuration:** Thresholds defined in `config.py`:
+- `TINY_CONTENT_THRESHOLD = 500` (characters)
+- `SMALL_CONTENT_THRESHOLD = 2000` (characters)
+
+**Rationale:** Small snippets don't benefit from abstractive summarization and waste API tokens. Tiny snippets already fit in context windows and are more precisely searchable when embedded directly.
+
+### Automatic Backup Integration
+
+`store_memory()` checks if automatic backup is due before storing content:
+
+1. If `ENABLE_AUTO_BACKUP=true` (from config), calls `should_create_backup()` from `utils.backup`
+2. `should_create_backup()` checks if `BACKUP_INTERVAL_HOURS` has elapsed since last backup
+3. If due, `create_backup()` creates timestamped ZIP of `memory_db/` directory
+4. Backup creation is logged but doesn't block storage on failure
+5. Old backups beyond `BACKUP_RETENTION_COUNT` are automatically cleaned up
+
+**Thread Safety:** Backup system uses `threading.Lock()` to prevent race conditions during concurrent stores. See `docs/bg_info_utils.md` for backup system details.
+
     - `retrieve_memory(query: str, max_results: int = 5, topic: Optional[str] = None, return_type: Literal["full_text","summary","both"] = "full_text") -> List[dict]`:
       - Searches Chroma summary embeddings first for efficiency, then hydrates full records from SQLite. Returns list of results; if none, returns a single `format_response` message element instead of an empty list.
     - `update_memory(memory_id: str, content?: str, topic?: str, tags?: List[str]) -> dict`:

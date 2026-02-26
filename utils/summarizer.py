@@ -1,22 +1,25 @@
+import logging
 import os
-from typing import Optional, Literal
+from typing import Literal
 
 from openai.types.chat import ChatCompletionMessageParam
 
 from utils.open_router_client import OpenRouterClient
 
+logger = logging.getLogger(__name__)
+
 
 class Summarizer:
-    def __init__(self, api_key: str, model_name: str = 'openai/gpt-4o-mini'):
+    def __init__(self, api_key: str, model_name: str = "openai/gpt-4o-mini"):
         self.client = OpenRouterClient(api_key=api_key, model_name=model_name)
 
     def generate_summary(
-            self,
-            text: str,
-            summary_type: Literal["abstractive", "extractive", "query_focused"] = "abstractive",
-            length: Literal["short", "medium", "detailed"] = "medium",
-            query: Optional[str] = None
-    ) -> Optional[str]:
+        self,
+        text: str,
+        summary_type: Literal["abstractive", "extractive", "query_focused"] = "abstractive",
+        length: Literal["short", "medium", "detailed"] = "medium",
+        query: str | None = None,
+    ) -> str | None:
         """
         Generates a summary of the given text using an LLM.
 
@@ -32,22 +35,22 @@ class Summarizer:
         system_prompt = self._get_system_prompt(summary_type, length, query)
         messages: list[ChatCompletionMessageParam] = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Please summarize the following text:\n\n{text}"}
+            {"role": "user", "content": f"Please summarize the following text:\n\n{text}"},
         ]
 
         try:
             response = self.client.create_completions_stream(messages, stream=False)
-            summary = response.choices[0].message.content
+            summary: str | None = response.choices[0].message.content
             return summary
         except Exception as e:
-            print(f"Error generating summary: {e}")
+            logger.error(f"Error generating summary: {e}")
             return None
 
     def _get_system_prompt(
-            self,
-            summary_type: Literal["abstractive", "extractive", "query_focused"],
-            length: Literal["short", "medium", "detailed"],
-            query: Optional[str]
+        self,
+        summary_type: Literal["abstractive", "extractive", "query_focused"],
+        length: Literal["short", "medium", "detailed"],
+        query: str | None,
     ) -> str:
         """
         Generates the system prompt for the LLM based on summary type and length.
@@ -75,7 +78,7 @@ class Summarizer:
         return prompt
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Example Usage (replace with your actual API key)
     # You might need to set OPENROUTER_API_KEY in your environment variables
     # or pass it directly to the Summarizer constructor.
@@ -90,17 +93,23 @@ if __name__ == '__main__':
         """
 
         print("--- Abstractive Medium Summary ---")
-        abstractive_summary = summarizer.generate_summary(sample_text, summary_type="abstractive", length="medium")
+        abstractive_summary = summarizer.generate_summary(
+            sample_text, summary_type="abstractive", length="medium"
+        )
         print(abstractive_summary)
 
         print("\n--- Extractive Short Summary ---")
-        extractive_summary = summarizer.generate_summary(sample_text, summary_type="extractive", length="short")
+        extractive_summary = summarizer.generate_summary(
+            sample_text, summary_type="extractive", length="short"
+        )
         print(extractive_summary)
 
         print("\n--- Query-Focused Detailed Summary (What are the challenges?) ---")
         query_focused_summary = summarizer.generate_summary(
-            sample_text, summary_type="query_focused", length="detailed",
-            query="What are the challenges of quantum computing?"
+            sample_text,
+            summary_type="query_focused",
+            length="detailed",
+            query="What are the challenges of quantum computing?",
         )
         print(query_focused_summary)
 

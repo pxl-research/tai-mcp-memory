@@ -1,49 +1,54 @@
+import logging
 import os
 import sys
-from typing import List, Optional, Literal
+from typing import Literal
 
 # Get the absolute path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from config import DB_PATH, OPENROUTER_API_KEY
-from db import SQLiteManager, ChromaManager
-from utils import timestamp, format_response
+from db import ChromaManager, SQLiteManager
+from utils import format_response, timestamp
 from utils.summarizer import Summarizer
+
+logger = logging.getLogger(__name__)
 
 # Initialize database managers
 sqlite_manager = SQLiteManager()
 chroma_manager = ChromaManager()
 
 # Initialize summarizer
-summarizer = Summarizer(api_key=OPENROUTER_API_KEY)
+summarizer = Summarizer(api_key=OPENROUTER_API_KEY or "")
+
+# Validate API key and warn if missing
+if not OPENROUTER_API_KEY or OPENROUTER_API_KEY.strip() == "":
+    logger.warning(
+        "OPENROUTER_API_KEY is not set. Summarization features will fail. "
+        "Set OPENROUTER_API_KEY in .env to enable summarization."
+    )
 
 
-def list_topics() -> List[dict]:
+def list_topics() -> list[dict]:
     """List all available topics/knowledge domains in the memory system.
-    
+
     Returns:
         List[dict]: Available topics with counts and descriptions
     """
     try:
         topics = sqlite_manager.list_topics()
 
-        return topics if topics else [
-            format_response(success=True, message="No topics found")
-        ]
+        return topics if topics else [format_response(success=True, message="No topics found")]
 
     except Exception as e:
-        return [format_response(
-            success=False,
-            message=f"Error listing topics: {str(e)}"
-        )]
+        return [format_response(success=False, message=f"Error listing topics: {str(e)}")]
 
 
 def get_status() -> dict:
     """Get memory system status and statistics.
-    
+
     Returns:
         dict: Statistics about memory usage, counts, etc.
     """
@@ -62,24 +67,21 @@ def get_status() -> dict:
                     **sqlite_stats,
                     **chroma_stats,
                     "db_path": DB_PATH,
-                    "system_time": timestamp()
+                    "system_time": timestamp(),
                 }
-            }
+            },
         )
 
     except Exception as e:
-        return format_response(
-            success=False,
-            message=f"Error getting memory status: {str(e)}"
-        )
+        return format_response(success=False, message=f"Error getting memory status: {str(e)}")
 
 
 def summarize_memory(
-        memory_id: Optional[str] = None,
-        query: Optional[str] = None,
-        topic: Optional[str] = None,
-        summary_type: Literal["abstractive", "extractive", "query_focused"] = "abstractive",
-        length: Literal["short", "medium", "detailed"] = "medium"
+    memory_id: str | None = None,
+    query: str | None = None,
+    topic: str | None = None,
+    summary_type: Literal["abstractive", "extractive", "query_focused"] = "abstractive",
+    length: Literal["short", "medium", "detailed"] = "medium",
 ) -> dict:
     """Generate a summary of memory items.
 
@@ -95,8 +97,7 @@ def summarize_memory(
     """
     if not any([memory_id, query, topic]):
         return format_response(
-            success=False,
-            message="At least one of memory_id, query, or topic must be provided."
+            success=False, message="At least one of memory_id, query, or topic must be provided."
         )
 
     content_to_summarize = ""
@@ -105,12 +106,18 @@ def summarize_memory(
         if item:
             content_to_summarize = item["content"]
         else:
-            return format_response(success=False, message=f"Memory item with ID {memory_id} not found.")
+            return format_response(
+                success=False, message=f"Memory item with ID {memory_id} not found."
+            )
     elif query or topic:
         # Search for relevant memories (using full content embeddings for broader search)
         # Note: This might need refinement to search summary embeddings first for efficiency
         # and then retrieve full content for summarization.
-        retrieved_memory_ids = chroma_manager.search_memories(query=query if query else "", max_results=10, topic=topic)
+        effective_query = query if query else topic
+        assert effective_query is not None  # guaranteed by elif query or topic: above
+        retrieved_memory_ids = chroma_manager.search_memories(
+            query=effective_query, max_results=10, topic=topic
+        )
 
         if not retrieved_memory_ids:
             return format_response(success=True, message="No relevant memories found to summarize.")
@@ -123,7 +130,9 @@ def summarize_memory(
                 contents.append(item["content"])
 
         if not contents:
-            return format_response(success=True, message="Could not retrieve content for relevant memories.")
+            return format_response(
+                success=True, message="Could not retrieve content for relevant memories."
+            )
 
         content_to_summarize = "\n\n".join(contents)
 
@@ -135,22 +144,19 @@ def summarize_memory(
             content_to_summarize,
             summary_type=summary_type,
             length=length,
-            query=query if summary_type == "query_focused" else None
+            query=query if summary_type == "query_focused" else None,
         )
 
         if generated_summary:
             return format_response(
                 success=True,
                 message="Summary generated successfully",
-                data={"summary": generated_summary}
+                data={"summary": generated_summary},
             )
         else:
             return format_response(
                 success=False,
-                message="Failed to generate summary. LLM might have encountered an issue or returned empty."
+                message="Failed to generate summary. LLM might have encountered an issue or returned empty.",
             )
     except Exception as e:
-        return format_response(
-            success=False,
-            message=f"Error generating summary: {str(e)}"
-        )
+        return format_response(success=False, message=f"Error generating summary: {str(e)}")

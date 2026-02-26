@@ -2,90 +2,56 @@
 
 Single source for project status, priorities, and planned work. This merges and replaces the previous separate roadmap and development plan.
 
-Last updated: 2026-01-28 (branch: development)
+Last updated: 2026-02-09 (branch: development)
 
-### Status Overview
+### Current Focus
 
-- Completed
+The core memory system is **stable and feature-complete** for the initial release. Current priorities:
 
-  - Dual-database architecture (SQLite authoritative store + ChromaDB semantic index)
-  - MCP tool surface: initialize, store, retrieve, update, delete, list_topics, status, summarize
-  - Summary-first retrieval via summary embeddings; regeneration on content change
-  - **SQLite foreign keys enabled per-connection** (`PRAGMA foreign_keys=ON`) with logging and verification
-  - **Topic count decrement logic** working correctly with defensive checks for data integrity
-  - **Test suite for FK cascades and topic management** (`tests/test_sqlite_fk_and_topic.py`)
+1. **Response consistency** - Standardize response shapes across all MCP tools
+2. **Testing improvements** - Migrate to pytest with fixtures and mocked dependencies
+3. **Documentation** - Operational guides for backup/restore, vacuum, Chroma maintenance
 
-- In Progress
+### Development Phases
 
-  - Documentation refinements (schema, ops, and background docs)
-  - Test stabilization (migrate remaining print-based scripts to pytest)
-
-- Next Up
-  - Standardize response shapes (apply `format_response` consistently; unify empty-result handling)
-  - Minimal pytest suite (fixtures, temp paths, mock summarizer)
-  - Include similarity scores in retrieval responses (optional)
-
-### MVP Focus (Stabilization)
-
-1. ~~Enable SQLite foreign keys per-connection (`PRAGMA foreign_keys=ON`).~~ ✅ **COMPLETED**
-2. ~~Fix topic count logic in `_remove_from_topic` (decrement; delete at zero).~~ ✅ **COMPLETED**
-3. **Fix deletion bug:** Memory deletion leaves Chroma summary embeddings orphaned (retrieve summary ID before deletion).
-4. Standardize response shapes (apply `format_response` consistently; unify empty-result handling).
-5. ~~Add minimal tests for FK cascades and topic decrement.~~ ✅ **COMPLETED**
-
-### Phases
-
-- Phase 1: Core Infrastructure — MVP stabilization
-
-  - Structured logging (`logging`), improved error handling
-  - Apply MVP fixes (FK pragma, topic decrement, response consistency)
-
-- Phase 2: Memory Management — Pending
-
-  - Keep single-document summarization for MVP; plan chunking post-MVP
+- Phase 2: Memory Management
   - Topic lifecycle and maintenance utilities
+  - Chunking strategy for large documents (post-MVP)
 
-- Phase 3: Advanced Features — Pending
-
-  - Multi-level summarization, quality assessment, retrieval scoring details
+- Phase 3: Advanced Features
+  - Multi-level summarization
+  - Quality assessment and retrieval scoring details
   - Usage statistics, access control (as needed)
 
-- Phase 4: Optimization & Scaling — Pending
+- Phase 4: Optimization & Scaling
   - Pagination for retrievals and topic listing
-  - Performance tuning, basic caching
+  - Performance tuning and caching strategies
+  - Database indices for common filters/sorts
 
 ### Next Steps
 
-- Immediate (1–2 weeks)
+**Immediate** (1-2 weeks):
+- Normalize retrieval response shapes (test_return_shape.py validates current behavior)
+- Add minimal pytest with temp paths and mocked summarizer
+- Operational documentation: backup/restore, vacuum, Chroma reset/maintenance
 
-  - ~~Enable FK pragma in `SQLiteConnection`~~ ✅ **COMPLETED**
-  - ~~Fix `_remove_from_topic` decrement logic and prune zero-count topics~~ ✅ **COMPLETED**
-  - ~~Introduce basic logging via `logging`~~ ✅ **COMPLETED** (for FK pragma and topic management)
-  - **Fix deletion bug:** Retrieve summary ID before deleting memory to prevent orphaned Chroma embeddings
-  - Normalize retrieval response shapes
-  - Add minimal pytest with temp paths and mocked summarizer
-  - Add test for proper Chroma summary embedding deletion
+**Medium-term** (3-4 weeks):
+- Indices for common filters/sorts (e.g., `topic_name`, `created_at`)
+- Reconciliation script comparing SQLite vs Chroma IDs
+- Pagination for retrieval and topic listing
+- Expand pytest coverage and add simple CI
 
-- Medium-term (3–4 weeks)
-  - Indices for common filters/sorts (e.g., `topic_name`, `created_at`; optional `UNIQUE(memory_id, summary_type)`)
-  - Reconciliation script comparing SQLite vs Chroma IDs
-  - Pagination for retrieval and topic listing
-  - Expand pytest coverage and add simple CI
+### Known Issues & Technical Debt
 
-### Technical Debt & Known Issues
+- **Cross-store consistency:** No transactional coordination between SQLite and Chroma; dual writes can diverge on partial failure
+- **Tests:** Some tests still procedural and print-driven; rely on real paths and network summarization (pytest migration in progress)
+- **Performance:** Vector search may slow with scale; consider indices and caching
+- **Configuration:** Hardcoded headers in OpenRouterClient (HTTP-Referer, X-Title) should be configurable
 
-- **Deletion bug:** `delete_memory` function deletes memory from SQLite (triggering FK cascade that deletes summaries), then tries to retrieve the summary to delete its Chroma embedding. Since the summary is already deleted, Chroma summary embeddings are left orphaned. **Fix:** Retrieve summary ID before deleting the memory.
-- Error handling/logging: replace remaining prints in other modules; propagate structured errors consistently
-- Cross-store consistency: no transactional coordination between SQLite and Chroma (deletion bug is an instance of this)
-- Tests: some tests still procedural and print-driven; rely on real paths and network summarization (need pytest migration)
-- Performance: vector search may slow with size; consider indices and caching
+### Documentation Backlog
 
-### Documentation Notes
-
-- ~~Clarify FK enforcement requirement in setup and examples~~ ✅ **COMPLETED** (FK pragma now enabled and documented)
-- ~~Document topic count decrement behavior~~ ✅ **COMPLETED** (topic management verified and tested)
-- Provide a quick mapping between SQLite tables and Chroma collections (IDs/metadata)
-- If one summary per type is desired: document `UNIQUE(memory_id, summary_type)`
+- Provide mapping between SQLite tables and Chroma collections (IDs/metadata alignment)
+- Document `UNIQUE(memory_id, summary_type)` constraint option
 - Add operational guidance: backup/restore, vacuum, Chroma reset/maintenance
 
 ### References

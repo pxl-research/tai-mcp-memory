@@ -5,22 +5,22 @@ This server provides a set of tools for storing, retrieving, and managing
 persistent memory for LLMs through the Model Context Protocol (MCP).
 """
 
+import logging
 import os
 import sys
-import logging
 from pathlib import Path
-from typing import List, Optional, Annotated, Literal
+from typing import Annotated, Literal
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 # Get the absolute path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from memory_service import core_memory_service, auxiliary_memory_service
+from memory_service import auxiliary_memory_service, core_memory_service
 
 # Initialize the MCP server
 mcp = FastMCP("memory_server")
@@ -29,6 +29,7 @@ mcp = FastMCP("memory_server")
 # -------------------------
 # Helper Functions
 # -------------------------
+
 
 def read_documentation_file(filename: str) -> str:
     """Read a documentation file from the project root or docs directory.
@@ -45,14 +46,14 @@ def read_documentation_file(filename: str) -> str:
     # Try project root first (for README.md, agents.md)
     if root_path.exists():
         try:
-            return root_path.read_text(encoding='utf-8')
+            return root_path.read_text(encoding="utf-8")
         except Exception as e:
             return f"Error reading {filename}: {str(e)}"
 
     # Try docs directory (for database_schema.md, roadmap.md, etc.)
     if docs_path.exists():
         try:
-            return docs_path.read_text(encoding='utf-8')
+            return docs_path.read_text(encoding="utf-8")
         except Exception as e:
             return f"Error reading docs/{filename}: {str(e)}"
 
@@ -63,26 +64,27 @@ def read_documentation_file(filename: str) -> str:
 # Prompts (discovery helpers)
 # -------------------------
 
+
 @mcp.prompt()
 def store_memory_prompt(
-        content: Annotated[
-            str,
-            Field(
-                description="Exact text to store (unaltered)",
-                examples=[
-                    "Reminder: Standup moved to 10:15 Mon–Thu.",
-                    "Postgres uses MVCC for concurrency."
-                ]
-            )
-        ],
-        topic: Annotated[
-            Optional[str],
-            Field(
-                description="Short topic/category (e.g., 'project/roadmap')",
-                default=None,
-                examples=["project/roadmap", "databases", None]
-            )
-        ] = None
+    content: Annotated[
+        str,
+        Field(
+            description="Exact text to store (unaltered)",
+            examples=[
+                "Reminder: Standup moved to 10:15 Mon–Thu.",
+                "Postgres uses MVCC for concurrency.",
+            ],
+        ),
+    ],
+    topic: Annotated[
+        str | None,
+        Field(
+            description="Short topic/category (e.g., 'project/roadmap')",
+            default=None,
+            examples=["project/roadmap", "databases", None],
+        ),
+    ] = None,
 ) -> str:
     """Guide the model to store a memory using minimal fields.
 
@@ -107,24 +109,19 @@ def store_memory_prompt(
 
 @mcp.prompt()
 def recall_memory_prompt(
-        query: Annotated[
-            str,
-            Field(
-                description="What to retrieve (natural language)",
-                examples=[
-                    "What did we decide about release timing?",
-                    "Key points about MVCC"
-                ]
-            )
-        ],
-        topic: Annotated[
-            Optional[str],
-            Field(
-                description="Optional topic filter",
-                default=None,
-                examples=["project/roadmap", None]
-            )
-        ] = None
+    query: Annotated[
+        str,
+        Field(
+            description="What to retrieve (natural language)",
+            examples=["What did we decide about release timing?", "Key points about MVCC"],
+        ),
+    ],
+    topic: Annotated[
+        str | None,
+        Field(
+            description="Optional topic filter", default=None, examples=["project/roadmap", None]
+        ),
+    ] = None,
 ) -> str:
     """Guide the model to recall the most relevant memories.
 
@@ -153,11 +150,12 @@ def recall_memory_prompt(
 # Resources (documentation)
 # -------------------------
 
+
 @mcp.resource(
     uri="memory://docs/agents",
     name="agents-guide",
     description="Comprehensive guide for AI agents on when and how to use the memory system proactively. Covers storage patterns, retrieval strategies, topic naming, and best practices for maintaining context across conversations.",
-    mime_type="text/markdown"
+    mime_type="text/markdown",
 )
 def get_agents_guide() -> str:
     """Get the agents usage guidelines documentation.
@@ -173,7 +171,7 @@ def get_agents_guide() -> str:
     uri="memory://docs/readme",
     name="project-readme",
     description="Project overview including setup instructions, available tools, usage patterns, configuration details, and integration with MCP clients.",
-    mime_type="text/markdown"
+    mime_type="text/markdown",
 )
 def get_readme() -> str:
     """Get the project README documentation.
@@ -188,7 +186,7 @@ def get_readme() -> str:
     uri="memory://docs/schema",
     name="database-schema",
     description="Detailed database schema including SQLite tables, ChromaDB collections, relationships, and dual-storage architecture. Covers topics, memory_items, summaries tables and their connections.",
-    mime_type="text/markdown"
+    mime_type="text/markdown",
 )
 def get_database_schema() -> str:
     """Get the database schema documentation.
@@ -203,7 +201,7 @@ def get_database_schema() -> str:
     uri="memory://docs/roadmap",
     name="project-roadmap",
     description="Current development status, completed features, in-progress work, planned improvements, known issues, and technical debt.",
-    mime_type="text/markdown"
+    mime_type="text/markdown",
 )
 def get_roadmap() -> str:
     """Get the project roadmap and development plan.
@@ -218,16 +216,15 @@ def get_roadmap() -> str:
 # Tools
 # -------------------------
 
+
 @mcp.tool()
 def memory_initialize(
-        reset: Annotated[
-            bool,
-            Field(
-                description="Whether to reset existing memory",
-                default=False,
-                examples=[False, True]
-            )
-        ] = False
+    reset: Annotated[
+        bool,
+        Field(
+            description="Whether to reset existing memory", default=False, examples=[False, True]
+        ),
+    ] = False,
 ) -> dict:
     """Initialize or reset the memory system databases.
 
@@ -249,28 +246,30 @@ def memory_initialize(
 
 @mcp.tool()
 def memory_store(
-        content: Annotated[
-            str,
-            Field(
-                description="The content to store in memory",
-                examples=["Quantum computing uses qubits which can exist in multiple states simultaneously."]
-            )
-        ],
-        topic: Annotated[
-            str,
-            Field(
-                description="Primary topic/category for this content",
-                examples=["quantum_computing", "machine_learning", "history"]
-            )
-        ],
-        tags: Annotated[
-            List[str],
-            Field(
-                description="Optional tags for better retrieval",
-                default=[],
-                examples=[["physics", "computing", "technology"], ["ai", "neural_networks"]]
-            )
-        ] = []
+    content: Annotated[
+        str,
+        Field(
+            description="The content to store in memory",
+            examples=[
+                "Quantum computing uses qubits which can exist in multiple states simultaneously."
+            ],
+        ),
+    ],
+    topic: Annotated[
+        str,
+        Field(
+            description="Primary topic/category for this content",
+            examples=["quantum_computing", "machine_learning", "history"],
+        ),
+    ],
+    tags: Annotated[
+        list[str] | None,
+        Field(
+            description="Optional tags for better retrieval",
+            default=None,
+            examples=[["physics", "computing", "technology"], ["ai", "neural_networks"]],
+        ),
+    ] = None,
 ) -> dict:
     """Store new information in persistent memory for use across conversations.
 
@@ -300,38 +299,34 @@ def memory_store(
 
 @mcp.tool()
 def memory_retrieve(
-        query: Annotated[
-            str,
-            Field(
-                description="The query to search for in memory",
-                examples=["How do quantum computers work?", "Tell me about machine learning"]
-            )
-        ],
-        max_results: Annotated[
-            int,
-            Field(
-                description="Maximum number of results to return",
-                default=5,
-                examples=[3, 5, 10]
-            )
-        ] = 5,
-        topic: Annotated[
-            Optional[str],
-            Field(
-                description="Optional topic to restrict search to",
-                default=None,
-                examples=["quantum_computing", "machine_learning"]
-            )
-        ] = None,
-        return_type: Annotated[
-            Literal["full_text", "summary", "both"],
-            Field(
-                description="The type of content to return: full_text, summary, or both",
-                default="full_text",
-                examples=["full_text", "summary", "both"]
-            )
-        ] = "full_text"
-) -> List[dict]:
+    query: Annotated[
+        str,
+        Field(
+            description="The query to search for in memory",
+            examples=["How do quantum computers work?", "Tell me about machine learning"],
+        ),
+    ],
+    max_results: Annotated[
+        int,
+        Field(description="Maximum number of results to return", default=5, examples=[3, 5, 10]),
+    ] = 5,
+    topic: Annotated[
+        str | None,
+        Field(
+            description="Optional topic to restrict search to",
+            default=None,
+            examples=["quantum_computing", "machine_learning"],
+        ),
+    ] = None,
+    return_type: Annotated[
+        Literal["full_text", "summary", "both"],
+        Field(
+            description="The type of content to return: full_text, summary, or both",
+            default="full_text",
+            examples=["full_text", "summary", "both"],
+        ),
+    ] = "full_text",
+) -> list[dict]:
     """Retrieve information from memory using semantic search.
 
     CALL THIS AT THE START OF EVERY CONVERSATION to check for relevant context about
@@ -355,43 +350,40 @@ def memory_retrieve(
     Returns:
         List[dict]: List of matching memory items with content and metadata
     """
-    return core_memory_service.retrieve_memory(query=query, max_results=max_results, topic=topic,
-                                               return_type=return_type)
+    return core_memory_service.retrieve_memory(
+        query=query, max_results=max_results, topic=topic, return_type=return_type
+    )
 
 
 @mcp.tool()
 def memory_update(
-        memory_id: Annotated[
-            str,
-            Field(
-                description="ID of the memory item to update",
-                examples=["550e8400-e29b-41d4-a716-446655440000"]
-            )
-        ],
-        content: Annotated[
-            Optional[str],
-            Field(
-                description="New content (if updating content)",
-                default=None,
-                examples=["Updated information about quantum computing"]
-            )
-        ] = None,
-        topic: Annotated[
-            Optional[str],
-            Field(
-                description="New topic (if changing)",
-                default=None,
-                examples=["quantum_physics"]
-            )
-        ] = None,
-        tags: Annotated[
-            Optional[List[str]],
-            Field(
-                description="New tags (if updating)",
-                default=None,
-                examples=[["updated", "revised", "quantum"]]
-            )
-        ] = None
+    memory_id: Annotated[
+        str,
+        Field(
+            description="ID of the memory item to update",
+            examples=["550e8400-e29b-41d4-a716-446655440000"],
+        ),
+    ],
+    content: Annotated[
+        str | None,
+        Field(
+            description="New content (if updating content)",
+            default=None,
+            examples=["Updated information about quantum computing"],
+        ),
+    ] = None,
+    topic: Annotated[
+        str | None,
+        Field(description="New topic (if changing)", default=None, examples=["quantum_physics"]),
+    ] = None,
+    tags: Annotated[
+        list[str] | None,
+        Field(
+            description="New tags (if updating)",
+            default=None,
+            examples=[["updated", "revised", "quantum"]],
+        ),
+    ] = None,
 ) -> dict:
     """Update an existing memory item when information changes or evolves.
 
@@ -413,11 +405,13 @@ def memory_update(
     Returns:
         dict: Status and updated memory details
     """
-    return core_memory_service.update_memory(memory_id=memory_id, content=content, topic=topic, tags=tags)
+    return core_memory_service.update_memory(
+        memory_id=memory_id, content=content, topic=topic, tags=tags
+    )
 
 
 @mcp.tool()
-def memory_list_topics() -> List[dict]:
+def memory_list_topics() -> list[dict]:
     """List all available topics/knowledge domains in the memory system.
 
     Use this to:
@@ -452,13 +446,13 @@ def memory_status() -> dict:
 
 @mcp.tool()
 def memory_delete(
-        memory_id: Annotated[
-            str,
-            Field(
-                description="ID of the memory item to delete",
-                examples=["550e8400-e29b-41d4-a716-446655440000"]
-            )
-        ]
+    memory_id: Annotated[
+        str,
+        Field(
+            description="ID of the memory item to delete",
+            examples=["550e8400-e29b-41d4-a716-446655440000"],
+        ),
+    ],
 ) -> dict:
     """Delete a memory item from the system.
 
@@ -482,43 +476,43 @@ def memory_delete(
 
 @mcp.tool()
 def memory_summarize(
-        memory_id: Annotated[
-            Optional[str],
-            Field(
-                description="ID of the memory item to summarize",
-                examples=["550e8400-e29b-41d4-a716-446655440000"]
-            )
-        ] = None,
-        query: Annotated[
-            Optional[str],
-            Field(
-                description="A query to find relevant memories to summarize",
-                examples=["key points of quantum computing"]
-            )
-        ] = None,
-        topic: Annotated[
-            Optional[str],
-            Field(
-                description="A topic to find relevant memories to summarize",
-                examples=["quantum_computing"]
-            )
-        ] = None,
-        summary_type: Annotated[
-            Literal["abstractive", "extractive", "query_focused"],
-            Field(
-                description="The type of summary to generate",
-                default="abstractive",
-                examples=["abstractive", "extractive", "query_focused"]
-            )
-        ] = "abstractive",
-        length: Annotated[
-            Literal["short", "medium", "detailed"],
-            Field(
-                description="The desired length of the summary",
-                default="medium",
-                examples=["short", "medium", "detailed"]
-            )
-        ] = "medium"
+    memory_id: Annotated[
+        str | None,
+        Field(
+            description="ID of the memory item to summarize",
+            examples=["550e8400-e29b-41d4-a716-446655440000"],
+        ),
+    ] = None,
+    query: Annotated[
+        str | None,
+        Field(
+            description="A query to find relevant memories to summarize",
+            examples=["key points of quantum computing"],
+        ),
+    ] = None,
+    topic: Annotated[
+        str | None,
+        Field(
+            description="A topic to find relevant memories to summarize",
+            examples=["quantum_computing"],
+        ),
+    ] = None,
+    summary_type: Annotated[
+        Literal["abstractive", "extractive", "query_focused"],
+        Field(
+            description="The type of summary to generate",
+            default="abstractive",
+            examples=["abstractive", "extractive", "query_focused"],
+        ),
+    ] = "abstractive",
+    length: Annotated[
+        Literal["short", "medium", "detailed"],
+        Field(
+            description="The desired length of the summary",
+            default="medium",
+            examples=["short", "medium", "detailed"],
+        ),
+    ] = "medium",
 ) -> dict:
     """Generate a summary of memory items on demand.
 
@@ -545,11 +539,7 @@ def memory_summarize(
         dict: The generated summary or an error message.
     """
     return auxiliary_memory_service.summarize_memory(
-        memory_id=memory_id,
-        query=query,
-        topic=topic,
-        summary_type=summary_type,
-        length=length
+        memory_id=memory_id, query=query, topic=topic, summary_type=summary_type, length=length
     )
 
 
@@ -560,15 +550,14 @@ def memory_summarize(
 if __name__ == "__main__":
     # Basic logging configuration
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(name)s: %(message)s'
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
     logger = logging.getLogger(__name__)
-    logger.info('Initializing memory server...')
+    logger.info("Initializing memory server...")
 
     # Initialize the memory system on startup
     init_result = memory_initialize()
     logger.info(f"Initialization result: {init_result['status']}")
 
     # Run the MCP server
-    mcp.run(transport='stdio')
+    mcp.run(transport="stdio")

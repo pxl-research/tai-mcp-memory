@@ -6,26 +6,28 @@ This script tests the backup utilities and integration with the memory system.
 
 # Enable test mode to use separate test database
 import os
-os.environ['TEST_MODE'] = '1'
 
+os.environ["TEST_MODE"] = "1"
+
+import shutil
 import sys
 import time
 from pathlib import Path
-import shutil
 
 # Add project root to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from config import BACKUP_PATH, DB_PATH
+from config import BACKUP_PATH
 from utils.backup import (
-    get_last_backup_timestamp,
-    should_create_backup,
-    create_backup,
+    _parse_backup_timestamp,
     cleanup_old_backups,
-    list_backups
+    create_backup,
+    get_last_backup_timestamp,
+    list_backups,
+    should_create_backup,
 )
 
 
@@ -90,7 +92,7 @@ def test_backup_utilities():
 
     # Test 7: Create multiple backups and test retention
     print("Test 7: Create multiple backups and test retention")
-    for i in range(12):
+    for _ in range(12):
         time.sleep(0.1)  # Small delay to ensure different timestamps
         create_backup()
 
@@ -99,8 +101,10 @@ def test_backup_utilities():
 
     # With default retention of 10, should have exactly 10
     from config import BACKUP_RETENTION_COUNT
-    assert len(backups) <= BACKUP_RETENTION_COUNT, \
-        f"Expected at most {BACKUP_RETENTION_COUNT} backups, found {len(backups)}"
+
+    assert (
+        len(backups) <= BACKUP_RETENTION_COUNT
+    ), f"Expected at most {BACKUP_RETENTION_COUNT} backups, found {len(backups)}"
     print(f"✓ Retention policy working: kept {len(backups)} backups (max {BACKUP_RETENTION_COUNT})")
     print()
 
@@ -122,12 +126,12 @@ def test_integration():
     print("Test: Verify backup integration imports")
 
     try:
-        from memory_service import core_memory_service
         print("✓ Successfully imported core_memory_service with backup integration")
         print()
 
         # Check that backup config is available
-        from config import ENABLE_AUTO_BACKUP, BACKUP_INTERVAL_HOURS
+        from config import BACKUP_INTERVAL_HOURS, ENABLE_AUTO_BACKUP
+
         print(f"✓ ENABLE_AUTO_BACKUP: {ENABLE_AUTO_BACKUP}")
         print(f"✓ BACKUP_INTERVAL_HOURS: {BACKUP_INTERVAL_HOURS}")
         print()
@@ -139,6 +143,37 @@ def test_integration():
     except Exception as e:
         print(f"✗ Integration test failed: {str(e)}")
         raise
+
+
+def test_parse_invalid_backup_filename():
+    result = _parse_backup_timestamp(Path("not_a_valid_backup_name.zip"))
+    assert result is None
+
+
+def test_cleanup_old_backups_missing_dir():
+    # Should not raise even when backup dir doesn't exist
+    missing = Path(BACKUP_PATH) / "nonexistent_subdir_xyz"
+
+    import utils.backup as backup_module
+
+    original_path = backup_module.BACKUP_PATH
+    backup_module.BACKUP_PATH = str(missing)
+    try:
+        cleanup_old_backups()  # must not raise
+    finally:
+        backup_module.BACKUP_PATH = original_path
+
+
+def test_list_backups_missing_dir():
+    import utils.backup as backup_module
+
+    original_path = backup_module.BACKUP_PATH
+    backup_module.BACKUP_PATH = "/tmp/tai_mcp_nonexistent_backup_dir_xyz"
+    try:
+        result = list_backups()
+        assert result == []
+    finally:
+        backup_module.BACKUP_PATH = original_path
 
 
 def main():

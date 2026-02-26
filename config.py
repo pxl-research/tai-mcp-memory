@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Check for test mode
-_TEST_MODE = os.getenv('TEST_MODE', '0') == '1'
+_TEST_MODE = os.getenv("TEST_MODE", "0") == "1"
 
 # Database paths
 if _TEST_MODE:
@@ -32,6 +32,16 @@ OPENROUTER_ENDPOINT = os.getenv("OPENROUTER_ENDPOINT", "https://api.openrouter.a
 
 # Other configuration
 DEFAULT_MAX_RESULTS = 5
+
+# Content size thresholds (in characters)
+# These control summarization behavior based on content length
+TINY_CONTENT_THRESHOLD = int(
+    os.getenv("TINY_CONTENT_THRESHOLD", "500")
+)  # Skip summarization below this
+SMALL_CONTENT_THRESHOLD = int(
+    os.getenv("SMALL_CONTENT_THRESHOLD", "2000")
+)  # Use extractive/short summary below this
+# Content >= 2000 chars uses abstractive/medium (current behavior)
 
 # Backup configuration
 ENABLE_AUTO_BACKUP = os.getenv("ENABLE_AUTO_BACKUP", "true").lower() == "true"

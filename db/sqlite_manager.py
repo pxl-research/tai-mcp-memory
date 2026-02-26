@@ -5,17 +5,18 @@ SQLite database manager for the MCP Memory Server.
 import logging
 import os
 import sys
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 # Get the absolute path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Now import using local path
-from config import SQLITE_PATH, MEMORY_COLLECTION, TOPICS_COLLECTION, SUMMARY_COLLECTION
+from config import MEMORY_COLLECTION, SQLITE_PATH, SUMMARY_COLLECTION, TOPICS_COLLECTION
 from utils.helpers import timestamp
+
 from .sqlite_connection import SQLiteConnection
 
 
@@ -34,11 +35,12 @@ class SQLiteManager:
         except Exception as e:
             self.logger.error(f"Error creating directory: {e}")
 
-    def _query_fetch(self, query: str, all: bool = True) -> list | None:
+    def _query_fetch(self, query: str, all: bool = True) -> list[Any] | None:
         try:
             with SQLiteConnection(SQLITE_PATH) as conn:
                 cursor = conn.cursor()
                 cursor.execute(query)
+                result: list[Any] | None
                 if all:
                     result = cursor.fetchall()
                 else:
@@ -51,15 +53,15 @@ class SQLiteManager:
 
     def initialize(self, reset: bool = False) -> bool:
         """Initialize the SQLite database.
-        
+
         Args:
             reset: Whether to reset the database
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
         try:
-            self.logger.info(f'SQLiteManager: Initializing SQLite database at {SQLITE_PATH}')
+            self.logger.info(f"SQLiteManager: Initializing SQLite database at {SQLITE_PATH}")
             with SQLiteConnection(SQLITE_PATH) as conn:
                 cursor = conn.cursor()
 
@@ -125,15 +127,15 @@ class SQLiteManager:
             self.logger.error(f"Error initializing SQLite database: {e}")
             return False
 
-    def store_memory(self, memory_id: str, content: str, topic: str, tags: List[str]) -> bool:
+    def store_memory(self, memory_id: str, content: str, topic: str, tags: list[str]) -> bool:
         """Store a memory item in the database.
-        
+
         Args:
             memory_id: Unique ID for the memory item
             content: The content to store
             topic: The topic category
             tags: List of tags
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -152,7 +154,7 @@ class SQLiteManager:
                         (id, content, topic_name, tags, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (memory_id, content, topic, ",".join(tags), now, now)
+                    (memory_id, content, topic, ",".join(tags), now, now),
                 )
 
                 conn.commit()
@@ -162,7 +164,7 @@ class SQLiteManager:
             self.logger.error(f"Error storing memory in SQLite: {e}")
             return False
 
-    def _add_to_topic(self, topic: str, conn: any) -> bool:
+    def _add_to_topic(self, topic: str, conn: Any) -> bool:
         try:
             now = timestamp()
             cursor = conn.cursor()
@@ -174,7 +176,7 @@ class SQLiteManager:
             if not topic_exists:
                 cursor.execute(
                     f"INSERT INTO {TOPICS_COLLECTION} (name, item_count, created_at, updated_at ) VALUES (?, ?, ?, ?)",
-                    (topic, 1, now, now)
+                    (topic, 1, now, now),
                 )
             else:
                 cursor.execute(
@@ -182,7 +184,7 @@ class SQLiteManager:
                        SET item_count = item_count + 1,
                            updated_at = ?
                        WHERE name = ?""",
-                    (now, topic)
+                    (now, topic),
                 )
 
             conn.commit()
@@ -191,7 +193,7 @@ class SQLiteManager:
             self.logger.error(f"Error storing memory in SQLite: {e}")
             return False
 
-    def _remove_from_topic(self, topic: str, conn: any) -> bool:
+    def _remove_from_topic(self, topic: str, conn: Any) -> bool:
         try:
             now = timestamp()
             cursor = conn.cursor()
@@ -208,7 +210,7 @@ class SQLiteManager:
                            SET item_count = item_count - 1,
                                updated_at = ?
                            WHERE name = ?""",
-                        (now, topic)
+                        (now, topic),
                     )
                 else:  # current_count <= 1
                     # Delete topic when removing last item
@@ -220,12 +222,12 @@ class SQLiteManager:
             self.logger.error(f"Error removing from topic: {e}")
             return False
 
-    def get_memory(self, memory_id: str) -> Optional[Dict[str, Any]]:
+    def get_memory(self, memory_id: str) -> dict[str, Any] | None:
         """Get a memory item by ID.
-        
+
         Args:
             memory_id: The ID of the memory to retrieve
-            
+
         Returns:
             Optional[Dict[str, Any]]: The memory item or None if not found
         """
@@ -245,25 +247,28 @@ class SQLiteManager:
                     "tags": item["tags"].split(",") if item["tags"] else [],
                     "created_at": item["created_at"],
                     "updated_at": item["updated_at"],
-                    "version": item["version"]
+                    "version": item["version"],
                 }
 
         except Exception as e:
             self.logger.error(f"Error getting memory from SQLite: {e}")
             return None
 
-    def update_memory(self, memory_id: str,
-                      content: Optional[str] = None,
-                      topic: Optional[str] = None,
-                      tags: Optional[List[str]] = None) -> bool:
+    def update_memory(
+        self,
+        memory_id: str,
+        content: str | None = None,
+        topic: str | None = None,
+        tags: list[str] | None = None,
+    ) -> bool:
         """Update a memory item.
-        
+
         Args:
             memory_id: The ID of the memory to update
             content: New content (if updating)
             topic: New topic (if updating)
             tags: New tags (if updating)
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -300,7 +305,7 @@ class SQLiteManager:
                         version    = version + 1
                     WHERE id = ?
                     """,
-                    (new_content, new_topic, new_tags, now, memory_id)
+                    (new_content, new_topic, new_tags, now, memory_id),
                 )
 
                 # Step 3: Decrement old topic count
@@ -314,9 +319,9 @@ class SQLiteManager:
             self.logger.error(f"Error updating memory in SQLite: {e}")
             return False
 
-    def list_topics(self) -> List[Dict[str, Any]]:
+    def list_topics(self) -> list[dict[str, Any]]:
         """List all topics in the database.
-        
+
         Returns:
             List[Dict[str, Any]]: List of topics
         """
@@ -327,13 +332,15 @@ class SQLiteManager:
 
                 result = []
                 for topic in cursor.fetchall():
-                    result.append({
-                        "name": topic["name"],
-                        "description": topic["description"],
-                        "item_count": topic["item_count"],
-                        "created_at": topic["created_at"],
-                        "updated_at": topic["updated_at"]
-                    })
+                    result.append(
+                        {
+                            "name": topic["name"],
+                            "description": topic["description"],
+                            "item_count": topic["item_count"],
+                            "created_at": topic["created_at"],
+                            "updated_at": topic["updated_at"],
+                        }
+                    )
 
                 return result
 
@@ -341,9 +348,9 @@ class SQLiteManager:
             self.logger.error(f"Error listing topics from SQLite: {e}")
             return []
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get database status and statistics.
-        
+
         Returns:
             Dict[str, Any]: Database statistics
         """
@@ -360,18 +367,24 @@ class SQLiteManager:
                 topics_count = cursor.fetchone()["count"]
 
                 # Get top topics
-                cursor.execute(f"SELECT name, item_count FROM {TOPICS_COLLECTION} ORDER BY item_count DESC LIMIT 5")
+                cursor.execute(
+                    f"SELECT name, item_count FROM {TOPICS_COLLECTION} ORDER BY item_count DESC LIMIT 5"
+                )
                 top_topics = cursor.fetchall()
 
                 # Get latest item
-                cursor.execute(f"SELECT created_at FROM {MEMORY_COLLECTION} ORDER BY created_at DESC LIMIT 1")
+                cursor.execute(
+                    f"SELECT created_at FROM {MEMORY_COLLECTION} ORDER BY created_at DESC LIMIT 1"
+                )
                 latest_item = cursor.fetchone()
 
                 return {
                     "total_memories": memory_count,
                     "total_topics": topics_count,
-                    "top_topics": [{"name": t["name"], "count": t["item_count"]} for t in top_topics],
-                    "latest_item_date": latest_item["created_at"] if latest_item else None
+                    "top_topics": [
+                        {"name": t["name"], "count": t["item_count"]} for t in top_topics
+                    ],
+                    "latest_item_date": latest_item["created_at"] if latest_item else None,
                 }
 
         except Exception as e:
@@ -388,12 +401,13 @@ class SQLiteManager:
             bool: True if successful, False otherwise
         """
         try:
-            now = timestamp()
             with SQLiteConnection(SQLITE_PATH) as conn:
                 cursor = conn.cursor()
 
                 # Get the topic of the memory item before deleting
-                cursor.execute(f"SELECT topic_name FROM {MEMORY_COLLECTION} WHERE id = ?", (memory_id,))
+                cursor.execute(
+                    f"SELECT topic_name FROM {MEMORY_COLLECTION} WHERE id = ?", (memory_id,)
+                )
                 topic_item = cursor.fetchone()
 
                 if not topic_item:
@@ -414,7 +428,9 @@ class SQLiteManager:
             self.logger.error(f"Error deleting memory from SQLite: {e}")
             return False
 
-    def store_summary(self, summary_id: str, memory_id: str, summary_type: str, summary_text: str) -> bool:
+    def store_summary(
+        self, summary_id: str, memory_id: str, summary_type: str, summary_text: str
+    ) -> bool:
         """Store a summary item in the database.
 
         Args:
@@ -437,7 +453,7 @@ class SQLiteManager:
                         (id, memory_id, summary_type, summary_text, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (summary_id, memory_id, summary_type, summary_text, now, now)
+                    (summary_id, memory_id, summary_type, summary_text, now, now),
                 )
 
                 conn.commit()
@@ -447,7 +463,10 @@ class SQLiteManager:
             self.logger.error(f"Error storing summary in SQLite: {e}")
             return False
 
-    def list_summary_types_by_memory_id(self, memory_id: str, ) -> List[Dict[str, Any]]:
+    def list_summary_types_by_memory_id(
+        self,
+        memory_id: str,
+    ) -> list[dict[str, Any]]:
         """List all summaries of this memory in the database.
 
         Returns:
@@ -456,23 +475,21 @@ class SQLiteManager:
         try:
             with SQLiteConnection(SQLITE_PATH) as conn:
                 cursor = conn.cursor()
-                summaries = cursor.execute(
+                cursor.execute(
                     f"SELECT summary_type, count(id) AS id_count FROM {SUMMARY_COLLECTION} WHERE memory_id = ? GROUP BY summary_type ORDER BY id_count DESC",
-                    (memory_id,))
+                    (memory_id,),
+                )
 
                 result = []
                 for item in cursor.fetchall():
-                    result.append({
-                        "summary_type": item["summary_type"],
-                        "count": item["id_count"]
-                    })
+                    result.append({"summary_type": item["summary_type"], "count": item["id_count"]})
                 return result
 
         except Exception as e:
             self.logger.error(f"Error listing topics from SQLite: {e}")
             return []
 
-    def get_summary(self, memory_id: str, summary_type: str) -> Optional[Dict[str, Any]]:
+    def get_summary(self, memory_id: str, summary_type: str) -> dict[str, Any] | None:
         """Get a summary item by memory ID and summary type.
 
         Args:
@@ -487,7 +504,7 @@ class SQLiteManager:
                 cursor = conn.cursor()
                 cursor.execute(
                     f"SELECT * FROM {SUMMARY_COLLECTION} WHERE memory_id = ? AND summary_type = ?",
-                    (memory_id, summary_type)
+                    (memory_id, summary_type),
                 )
                 item = cursor.fetchone()
 
@@ -500,14 +517,14 @@ class SQLiteManager:
                     "summary_type": item["summary_type"],
                     "summary_text": item["summary_text"],
                     "created_at": item["created_at"],
-                    "updated_at": item["updated_at"]
+                    "updated_at": item["updated_at"],
                 }
 
         except Exception as e:
             self.logger.error(f"Error getting summary from SQLite: {e}")
             return None
 
-    def get_summary_by_id(self, summary_id: str) -> Optional[Dict[str, Any]]:
+    def get_summary_by_id(self, summary_id: str) -> dict[str, Any] | None:
         """Get a summary item by its unique ID.
 
         Args:
@@ -519,9 +536,40 @@ class SQLiteManager:
         try:
             with SQLiteConnection(SQLITE_PATH) as conn:
                 cursor = conn.cursor()
+                cursor.execute(f"SELECT * FROM {SUMMARY_COLLECTION} WHERE id = ?", (summary_id,))
+                item = cursor.fetchone()
+
+                if not item:
+                    return None
+
+                return {
+                    "id": item["id"],
+                    "memory_id": item["memory_id"],
+                    "summary_type": item["summary_type"],
+                    "summary_text": item["summary_text"],
+                    "created_at": item["created_at"],
+                    "updated_at": item["updated_at"],
+                }
+
+        except Exception as e:
+            self.logger.error(f"Error getting summary by ID from SQLite: {e}")
+            return None
+
+    def get_any_summary(self, memory_id: str) -> dict[str, Any] | None:
+        """Get the first summary for a memory item regardless of summary type.
+
+        Args:
+            memory_id: The ID of the memory to retrieve a summary for
+
+        Returns:
+            Optional[Dict[str, Any]]: The summary item or None if not found
+        """
+        try:
+            with SQLiteConnection(SQLITE_PATH) as conn:
+                cursor = conn.cursor()
                 cursor.execute(
-                    f"SELECT * FROM {SUMMARY_COLLECTION} WHERE id = ?",
-                    (summary_id,)
+                    f"SELECT * FROM {SUMMARY_COLLECTION} WHERE memory_id = ? LIMIT 1",
+                    (memory_id,),
                 )
                 item = cursor.fetchone()
 
@@ -534,19 +582,22 @@ class SQLiteManager:
                     "summary_type": item["summary_type"],
                     "summary_text": item["summary_text"],
                     "created_at": item["created_at"],
-                    "updated_at": item["updated_at"]
+                    "updated_at": item["updated_at"],
                 }
 
         except Exception as e:
-            self.logger.error(f"Error getting summary by ID from SQLite: {e}")
+            self.logger.error(f"Error getting summary from SQLite: {e}")
             return None
 
-    def update_summary(self, summary_id: str, new_summary_text: str) -> bool:
+    def update_summary(
+        self, summary_id: str, new_summary_text: str, summary_type: str | None = None
+    ) -> bool:
         """Update an existing summary item.
 
         Args:
             summary_id: The ID of the summary to update
             new_summary_text: The new summary content
+            summary_type: New summary type (if the type has changed)
 
         Returns:
             bool: True if successful, False otherwise
@@ -556,41 +607,31 @@ class SQLiteManager:
             with SQLiteConnection(SQLITE_PATH) as conn:
                 cursor = conn.cursor()
 
-                cursor.execute(
-                    f"""
-                    UPDATE {SUMMARY_COLLECTION}
-                    SET summary_text = ?,
-                        updated_at   = ?
-                    WHERE id = ?
-                    """,
-                    (new_summary_text, now, summary_id)
-                )
+                if summary_type is not None:
+                    cursor.execute(
+                        f"""
+                        UPDATE {SUMMARY_COLLECTION}
+                        SET summary_text = ?,
+                            summary_type = ?,
+                            updated_at   = ?
+                        WHERE id = ?
+                        """,
+                        (new_summary_text, summary_type, now, summary_id),
+                    )
+                else:
+                    cursor.execute(
+                        f"""
+                        UPDATE {SUMMARY_COLLECTION}
+                        SET summary_text = ?,
+                            updated_at   = ?
+                        WHERE id = ?
+                        """,
+                        (new_summary_text, now, summary_id),
+                    )
 
                 conn.commit()
                 return True
 
         except Exception as e:
             self.logger.error(f"Error updating summary in SQLite: {e}")
-            return False
-
-    def delete_summaries(self, memory_id: str) -> bool:
-        """Delete all summaries associated with a memory ID.
-
-        Args:
-            memory_id: The ID of the memory whose summaries to delete
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        try:
-            with SQLiteConnection(SQLITE_PATH) as conn:
-                cursor = conn.cursor()
-
-                cursor.execute(f"DELETE FROM {SUMMARY_COLLECTION} WHERE memory_id = ?", (memory_id,))
-
-                conn.commit()
-                return True
-
-        except Exception as e:
-            self.logger.error(f"Error deleting summaries from SQLite: {e}")
             return False

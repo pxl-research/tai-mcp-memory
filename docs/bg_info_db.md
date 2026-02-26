@@ -49,7 +49,8 @@ Last updated: 2026-01-28 (branch: development)
     - `delete_memory(memory_id)`: Deletes memory and updates the topic count.
     - `list_topics()`: Returns topics ordered by `updated_at`.
     - `get_status()`: Aggregates counts, top topics, and latest item timestamp.
-    - Summaries: `store_summary`, `list_summary_types_by_memory_id`, `get_summary`, `get_summary_by_id`, `update_summary`, `delete_summaries`.
+    - Summaries: `store_summary`, `list_summary_types_by_memory_id`, `get_summary`, `get_summary_by_id`, `update_summary`.
+      - Note: `delete_summaries` was removed as CASCADE handles deletion automatically when memory is deleted.
   - Internal helpers:
     - `_add_to_topic(topic, conn)`: Creates topic with `item_count=1` if missing; else increments the count and updates `updated_at`.
     - `_remove_from_topic(topic, conn)`: **Fixed** — Now correctly decrements `item_count` and deletes the topic when count reaches 1 (last item removed). Includes improved error logging.

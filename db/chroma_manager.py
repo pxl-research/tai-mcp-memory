@@ -3,22 +3,22 @@ ChromaDB manager for the MCP Memory Server.
 """
 
 import json
+import logging
 import os
 import sys
-import logging
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 import chromadb
 from chromadb import Settings
 
 # Get the absolute path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
+project_root = os.path.abspath(os.path.join(current_dir, ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Now import using local path
-from config import CHROMA_PATH, MEMORY_COLLECTION, TOPICS_COLLECTION, SUMMARY_COLLECTION
+from config import CHROMA_PATH, MEMORY_COLLECTION, SUMMARY_COLLECTION, TOPICS_COLLECTION
 from utils.helpers import timestamp
 
 
@@ -40,7 +40,7 @@ class ChromaManager:
 
     def _get_client(self):
         """Get a ChromaDB client.
-        
+
         Returns:
             chromadb.PersistentClient: A ChromaDB client
         """
@@ -50,14 +50,14 @@ class ChromaManager:
 
     def initialize(self, reset: bool = False) -> bool:
         """Initialize the ChromaDB database.
-        
+
         Args:
             reset: Whether to reset the database
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
-        self.logger.info(f'ChromaManager: Initializing Chroma database at {CHROMA_PATH}')
+        self.logger.info(f"ChromaManager: Initializing Chroma database at {CHROMA_PATH}")
 
         try:
             if reset:
@@ -80,18 +80,23 @@ class ChromaManager:
             self.logger.error(f"Error initializing ChromaDB: {e}")
             return False
 
-    def store_memory(self, memory_id: str,
-                     content: str,
-                     topic: str,
-                     tags: List[str]) -> bool:
+    def store_memory(
+        self,
+        memory_id: str,
+        content: str,
+        topic: str,
+        tags: list[str],
+        content_size: int | None = None,
+    ) -> bool:
         """Store a memory item in ChromaDB.
-        
+
         Args:
             memory_id: Unique ID for the memory item
             content: The content to store
             topic: The topic category
             tags: List of tags
-            
+            content_size: Size of the content in characters (optional)
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -101,36 +106,36 @@ class ChromaManager:
 
             tags_json = json.dumps(tags)  # Serialized as JSON string
 
-            collection.add(
-                ids=[memory_id],
-                documents=[content],
-                metadatas=[{
-                    "id": memory_id,
-                    "topic": topic,
-                    "tags": tags_json,
-                    "created_at": now,
-                    "updated_at": now
-                }]
-            )
+            metadata: dict[str, str | int] = {
+                "id": memory_id,
+                "topic": topic,
+                "tags": tags_json,
+                "created_at": now,
+                "updated_at": now,
+            }
+
+            # Add content_size if provided
+            if content_size is not None:
+                metadata["content_size"] = content_size
+
+            collection.add(ids=[memory_id], documents=[content], metadatas=[metadata])
 
             return True
 
         except Exception as e:
             self.logger.error(f"Error storing memory in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
-    def search_memories(self, query: str,
-                        max_results: int = 5,
-                        topic: Optional[str] = None) -> List[str]:
+    def search_memories(
+        self, query: str, max_results: int = 5, topic: str | None = None
+    ) -> list[str]:
         """Search for memories using semantic search.
-        
+
         Args:
             query: The search query
             max_results: Maximum number of results to return
             topic: Optional topic to restrict search to
-            
+
         Returns:
             List[str]: List of memory IDs matching the query
         """
@@ -142,9 +147,7 @@ class ChromaManager:
 
             # Perform semantic search
             results = collection.query(
-                query_texts=[query],
-                n_results=max_results,
-                where=where_filter
+                query_texts=[query], n_results=max_results, where=where_filter
             )
 
             # Extract memory IDs
@@ -159,23 +162,24 @@ class ChromaManager:
 
         except Exception as e:
             self.logger.error(f"Error searching memories in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return []
 
-    def update_memory(self, memory_id: str,
-                      content: Optional[str] = None,
-                      topic: Optional[str] = None,
-                      tags: Optional[List[str]] = None) -> bool:
+    def update_memory(
+        self,
+        memory_id: str,
+        content: str | None = None,
+        topic: str | None = None,
+        tags: list[str] | None = None,
+    ) -> bool:
         """Update a memory item in ChromaDB.
-        
+
         Args:
             memory_id: The ID of the memory to update
             content: The updated content
             topic: The updated topic
             tags: The updated tags
             created_at: The original creation timestamp
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -184,10 +188,7 @@ class ChromaManager:
             collection = self.client.get_collection(name=MEMORY_COLLECTION)
 
             # Get current memory item
-            results = collection.get(
-                ids=[memory_id],
-                include=["metadatas", "documents"]
-            )
+            results = collection.get(ids=[memory_id], include=["metadatas", "documents"])
 
             if not results or len(results["ids"]) == 0:
                 self.logger.debug(f"Memory item with id {memory_id} not found")
@@ -203,23 +204,23 @@ class ChromaManager:
 
             tags_json = json.dumps(new_tags)  # Serialized as JSON string
 
+            updated_metadata = {
+                **current_memory,
+                "topic": new_topic,
+                "tags": tags_json,
+                "updated_at": now,
+            }
+
             collection.update(
                 ids=[memory_id],
                 documents=[new_content],
-                metadatas=[{
-                    "id": memory_id,
-                    "topic": new_topic,
-                    "tags": tags_json,
-                    "updated_at": now
-                }]
+                metadatas=[updated_metadata],
             )
 
             return True
 
         except Exception as e:
             self.logger.error(f"Error updating memory in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
     def delete_memory(self, memory_id: str) -> bool:
@@ -237,29 +238,27 @@ class ChromaManager:
             return True
         except Exception as e:
             self.logger.error(f"Error deleting memory from ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get ChromaDB status information.
-        
+
         Returns:
             Dict[str, Any]: Status information
         """
         try:
             return {
                 "chroma_collection_count": len(self.client.list_collections()),
-                "chroma_path": CHROMA_PATH
+                "chroma_path": CHROMA_PATH,
             }
 
         except Exception as e:
             self.logger.error(f"Error getting ChromaDB status: {e}")
             return {}
 
-    def store_summary_embedding(self, summary_id: str,
-                                summary_text: str,
-                                metadata: Dict[str, Any]) -> bool:
+    def store_summary_embedding(
+        self, summary_id: str, summary_text: str, metadata: dict[str, Any]
+    ) -> bool:
         """Store a summary embedding in ChromaDB.
 
         Args:
@@ -272,21 +271,15 @@ class ChromaManager:
         """
         try:
             collection = self.client.get_collection(name=SUMMARY_COLLECTION)
-            collection.add(
-                ids=[summary_id],
-                documents=[summary_text],
-                metadatas=[metadata]
-            )
+            collection.add(ids=[summary_id], documents=[summary_text], metadatas=[metadata])
             return True
         except Exception as e:
             self.logger.error(f"Error storing summary embedding in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
-    def search_summary_embeddings(self, query: str,
-                                  max_results: int = 5,
-                                  topic: Optional[str] = None) -> List[str]:
+    def search_summary_embeddings(
+        self, query: str, max_results: int = 5, topic: str | None = None
+    ) -> list[str]:
         """Search for summaries using semantic search.
 
         Args:
@@ -301,9 +294,7 @@ class ChromaManager:
             collection = self.client.get_collection(name=SUMMARY_COLLECTION)
             where_filter = {"topic": topic} if topic else None
             results = collection.query(
-                query_texts=[query],
-                n_results=max_results,
-                where=where_filter
+                query_texts=[query], n_results=max_results, where=where_filter
             )
             summary_ids = []
             if results and len(results["ids"]) > 0 and len(results["ids"][0]) > 0:
@@ -311,8 +302,6 @@ class ChromaManager:
             return summary_ids
         except Exception as e:
             self.logger.error(f"Error searching summary embeddings in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return []
 
     def delete_summary_embeddings(self, summary_id: str) -> bool:
@@ -330,11 +319,9 @@ class ChromaManager:
             return True
         except Exception as e:
             self.logger.error(f"Error deleting summary embedding from ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
-    def get_summary_by_id(self, summary_id: str) -> Dict[str, Any] or None:
+    def get_summary_by_id(self, summary_id: str) -> dict[str, Any] | None:
         """Get a summary by its ID.
 
         Args:
@@ -345,30 +332,21 @@ class ChromaManager:
         """
         try:
             collection = self.client.get_collection(name=SUMMARY_COLLECTION)
-            results = collection.get(
-                ids=[summary_id],
-                include=["metadatas", "documents"]
-            )
+            results = collection.get(ids=[summary_id], include=["metadatas", "documents"])
 
             if results and len(results["ids"]) > 0:
                 # Summary found, extract metadata and document
                 metadata = results["metadatas"][0]
                 document = results["documents"][0]
-                return {
-                    "summary_text": document,
-                    **metadata
-                }
+                return {"summary_text": document, **metadata}
             else:
                 # Summary not found
                 return None
         except Exception as e:
             self.logger.error(f"Error getting summary from ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return None
 
-    def update_topic(self, topic: str,
-                     tags: Optional[List[str]] = None) -> bool:
+    def update_topic(self, topic: str, tags: list[str] | None = None) -> bool:
         """Update or create a topic in ChromaDB.
 
         Args:
@@ -383,7 +361,7 @@ class ChromaManager:
             topic_collection = self.client.get_collection(name=TOPICS_COLLECTION)
 
             # Convert tags to a string format for storage
-            tags_str = ', '.join(tags) if tags else topic
+            tags_str = ", ".join(tags) if tags else topic
             topic_summary = f"Topic {topic} containing information about {tags_str}"
 
             # Convert tags list to JSON string if present
@@ -397,32 +375,34 @@ class ChromaManager:
                 topic_collection.add(
                     ids=[topic],
                     documents=[topic_summary],
-                    metadatas=[{
-                        "name": topic,
-                        "tags": tags_json,  # Serialized as JSON string
-                        "created_at": now
-                    }]
+                    metadatas=[
+                        {
+                            "name": topic,
+                            "tags": tags_json,  # Serialized as JSON string
+                            "created_at": now,
+                        }
+                    ],
                 )
             else:
                 # Topic exists, update it
                 topic_collection.update(
                     ids=[topic],
                     documents=[topic_summary],
-                    metadatas=[{
-                        "name": topic,
-                        "tags": tags_json,  # Serialized as JSON string
-                        "updated_at": now
-                    }]
+                    metadatas=[
+                        {
+                            "name": topic,
+                            "tags": tags_json,  # Serialized as JSON string
+                            "updated_at": now,
+                        }
+                    ],
                 )
             return True
 
         except Exception as e:
             self.logger.error(f"Error updating topic in ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return False
 
-    def get_topic(self, topic: str) -> Dict[str, Any] or None:
+    def get_topic(self, topic: str) -> dict[str, Any] | None:
         """Get a topic by name.
 
         Args:
@@ -433,20 +413,15 @@ class ChromaManager:
         """
         try:
             topic_collection = self.client.get_collection(name=TOPICS_COLLECTION)
-            results = topic_collection.get(
-                ids=[topic],
-                include=["metadatas"]
-            )
+            results = topic_collection.get(ids=[topic], include=["metadatas"])
 
             if results and len(results["ids"]) > 0:
                 # Topic found, extract metadata
-                metadata = results["metadatas"][0]
+                metadata: dict[str, Any] = results["metadatas"][0]
                 return metadata
             else:
                 # Topic not found
                 return None
         except Exception as e:
             self.logger.error(f"Error getting topic from ChromaDB: {e}")
-            import traceback
-            traceback.print_exc()
             return None
