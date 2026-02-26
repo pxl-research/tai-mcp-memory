@@ -86,9 +86,7 @@ def test_update_memory_preserves_metadata(chroma_man):
     assert after["created_at"] == before["created_at"], "created_at was overwritten by update"
     assert after["content_size"] == content_size, "content_size was lost after update"
     assert after["id"] == memory_id, "id was lost after update"
-    assert (
-        after["updated_at"] != before["updated_at"] or after["updated_at"] >= before["updated_at"]
-    )
+    assert after["updated_at"] > before["updated_at"], "updated_at did not advance after update"
 
 
 def test_update_topic(chroma_man):
