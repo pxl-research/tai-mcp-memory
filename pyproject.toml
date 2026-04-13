@@ -5,11 +5,11 @@ description = "MCP Memory Server with persistent, semantic memory for LLM agents
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "mcp[cli]>=1.23.0",
-    "python-dotenv~=1.2.1",
-    "chromadb~=1.4.1",
+    "mcp[cli]>=1.27.0",
+    "python-dotenv~=1.2.2",
+    "chromadb~=1.5.7",
     "pydantic~=2.12.5",
-    "openai~=2.16.0",
+    "openai~=2.31.0",
 ]
 
 [tool.ruff]
@@ -44,6 +44,6 @@ omit = ["memory_server.py", "restore_memory.py", "tests/*"]
 
 [dependency-groups]
 dev = [
-    "pytest>=9.0.2",
-    "pytest-cov>=7.0.0",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
 ]
