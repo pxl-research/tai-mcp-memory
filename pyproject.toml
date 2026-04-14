@@ -7,9 +7,9 @@ requires-python = ">=3.10"
 dependencies = [
     "mcp[cli]>=1.23.0",
     "python-dotenv~=1.2.1",
-    "chromadb~=1.4.1",
-    "pydantic~=2.12.5",
-    "openai~=2.16.0",
+    "chromadb>=1.4.1,<1.6.0",
+    "pydantic>=2.12.5,<2.14.0",
+    "openai>=2.16,<2.32",
 ]
 
 [tool.ruff]
